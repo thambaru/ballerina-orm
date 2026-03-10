@@ -1,4 +1,4 @@
-import ballerinax/orm;
+import thambaru/bal_orm.orm;
 import ballerina/io;
 import ballerina/time;
 

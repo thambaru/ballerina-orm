@@ -36,7 +36,7 @@ bal add ballerinax:orm
 Use annotations to define your data model:
 
 ```ballerina
-import ballerinax/orm;
+import thambaru/bal_orm.orm;
 
 @orm:Entity {tableName: "users"}
 @orm:Index {columns: ["email"], unique: true}
@@ -82,7 +82,7 @@ public type Post record {|
 ### Initialize the Client
 
 ```ballerina
-import ballerinax/orm;
+import thambaru/bal_orm.orm;
 
 public function main() returns error? {
     // Using connection parameters

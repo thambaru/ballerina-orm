@@ -24,7 +24,7 @@ The ORM should feel similar to **Prisma** but follow **Ballerina idioms**.
 
 The project is divided into **three deliverables**.
 
-## 1. Core Library — `ballerinax/orm`
+## 1. Core Library — `thambaru/bal_orm.orm`
 
 Location:
 
@@ -74,7 +74,7 @@ modules/orm/
 
 ---
 
-## 2. Compiler Plugin — `ballerinax/orm-compiler-plugin`
+## 2. Compiler Plugin — `thambaru/bal_orm` compiler plugin
 
 Location:
 

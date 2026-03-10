@@ -238,7 +238,7 @@ This example:
 ### Use Case 1: Simple CRUD Application
 
 ```ballerina
-import ballerinax/orm;
+import thambaru/bal_orm.orm;
 
 @orm:Entity {tableName: "products"}
 type Product record {|

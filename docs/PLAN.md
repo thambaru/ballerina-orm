@@ -4,8 +4,8 @@ Build a Prisma-inspired ORM for Ballerina using annotated record types as the sc
 
 ### Architecture — Three Deliverables
 
-1. **`ballerinax/orm`** — Core library: annotations, query builder API, relation resolution, connection management. Wraps `ballerinax/mysql` and `ballerinax/postgresql`.
-2. **`ballerinax/orm-compiler-plugin`** — Reads annotated records at compile time, generates typed CRUD methods, input/output types, and query builders per model.
+1. **`thambaru/bal_orm.orm`** — Core library: annotations, query builder API, relation resolution, connection management. Wraps `ballerinax/mysql` and `ballerinax/postgresql`.
+2. **`thambaru/bal_orm` compiler plugin** — Reads annotated records at compile time, generates typed CRUD methods, input/output types, and query builders per model.
 3. **`bal orm` CLI tool** — Migration engine: schema introspection, diffing, SQL migration generation, apply/rollback.
 
 ---
