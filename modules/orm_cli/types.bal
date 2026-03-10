@@ -37,7 +37,7 @@ public type IntrospectedTable record {|
 # Introspected column schema.
 public type IntrospectedColumn record {|
     string name;
-    string type;
+    string 'type;
     boolean nullable;
     boolean isPrimaryKey = false;
     boolean isUnique = false;
@@ -72,7 +72,7 @@ public type SchemaDiff record {|
 # Represents a single schema difference item.
 public type SchemaDiffItem record {|
     string itemType; # "TABLE", "COLUMN", "INDEX", "CONSTRAINT"
-    string table;
+    string 'table;
     string? column = ();
     string? oldValue = ();
     string? newValue = ();
@@ -81,8 +81,8 @@ public type SchemaDiffItem record {|
 
 # Migration action details.
 public type MigrationAction record {|
-    string type; # "CREATE_TABLE", "ALTER_TABLE", "DROP_TABLE", "CREATE_INDEX", "DROP_INDEX"
-    string table;
+    string 'type; # "CREATE_TABLE", "ALTER_TABLE", "DROP_TABLE", "CREATE_INDEX", "DROP_INDEX"
+    string 'table;
     string? column = ();
     string? definition = ();
 |};

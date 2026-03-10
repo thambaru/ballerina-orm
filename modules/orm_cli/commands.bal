@@ -1,7 +1,4 @@
-import ballerina/os;
 import ballerina/io;
-import ballerinax/mysql;
-import ballerinax/postgresql;
 
 # Main CLI handler for ORM migration commands.
 
@@ -40,28 +37,28 @@ public function handleMigrateDevCommand(
 ) returns error? {
     io:println("Generating migration...");
     
-    # Parse desired schema from JSON (simplified - just announce intent)
+    // Parse desired schema from JSON (simplified - just announce intent)
     io:println("  Provider: " + provider);
     io:println("  Migrations dir: " + migrationsDir);
     io:println("  Migration name: " + name);
     
-    #TODO: Introspect DB
-    # IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
+    // TODO: Introspect DB
+    // IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
     
-    # TODO: Parse desired schema from JSON
-    # map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
+    // TODO: Parse desired schema from JSON
+    // map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
     
-    # TODO: Diff schemas
-    # SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
+    // TODO: Diff schemas
+    // SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
     
-    # TODO: Generate SQL
-    # string migrationSql = check generateMigrationSql(diff, provider);
+    // TODO: Generate SQL
+    // string migrationSql = check generateMigrationSql(diff, provider);
     
-    # TODO: Create migration file
-    # Migration migration = check createMigrationFile(migrationsDir, name, migrationSql);
+    // TODO: Create migration file
+    // Migration migration = check createMigrationFile(migrationsDir, name, migrationSql);
     
-    # TODO: Apply migration
-    # check recordMigrationApplied(dbClient, migration.id, migration.name);
+    // TODO: Apply migration
+    // check recordMigrationApplied(dbClient, migration.id, migration.name);
     
     io:println("✓ Migration ready");
     
@@ -81,22 +78,22 @@ public function handleMigrateDeployCommand(
 ) returns error? {
     io:println("Deploying migrations...");
     
-    # TODO: Get applied migrations
-    # Migration[] applied = check getAppliedMigrations(dbClient);
+    // TODO: Get applied migrations
+    // Migration[] applied = check getAppliedMigrations(dbClient);
     
-    # TODO: Get all migrations
+    // TODO: Get all migrations
     Migration[] all = check listMigrations(migrationsDir);
     
-    # TODO: Find pending
-    # Migration[] pending = all.filter(m => !applied.any(a => a.id == m.id));
+    // TODO: Find pending
+    // Migration[] pending = all.filter(m => !applied.any(a => a.id == m.id));
     
     io:println(string `Found ${all.length()} total migrations`);
     
-    # TODO: Apply each migration
-    # foreach var migration in pending {
-    #     check executeMigration(dbClient, migration);
-    #     check recordMigrationApplied(dbClient, migration.id, migration.name);
-    # }
+    // TODO: Apply each migration
+    // foreach var migration in pending {
+    //     check executeMigration(dbClient, migration);
+    //     check recordMigrationApplied(dbClient, migration.id, migration.name);
+    // }
     
     io:println("✓ Migrations deployed");
     
@@ -117,17 +114,17 @@ public function handleMigrateResetCommand(
     io:println("Resetting database...");
     io:println("WARNING: This will drop all tables!");
     
-    # TODO: Drop all tables
-    # check dropAllTables(dbClient, provider);
+    // TODO: Drop all tables
+    // check dropAllTables(dbClient, provider);
     
-    # TODO: Clear migration tracking
-    # check clearMigrationTracking(dbClient);
+    // TODO: Clear migration tracking
+    // check clearMigrationTracking(dbClient);
     
-    # TODO: Re-apply all migrations
-    # Migration[] all = check listMigrations(migrationsDir);
-    # foreach var migration in all {
-    #     check executeMigration(dbClient, migration);
-    # }
+    // TODO: Re-apply all migrations
+    // Migration[] all = check listMigrations(migrationsDir);
+    // foreach var migration in all {
+    //     check executeMigration(dbClient, migration);
+    // }
     
     io:println("✓ Database reset complete");
     
@@ -147,15 +144,15 @@ public function handleMigrateStatusCommand(
     io:println("Migration Status:");
     io:println("================");
     
-    # Get all migrations
+    // Get all migrations
     Migration[] all = check listMigrations(migrationsDir);
     
-    # TODO: Get applied migrations
-    # Migration[] applied = check getAppliedMigrations(dbClient);
+    // TODO: Get applied migrations
+    // Migration[] applied = check getAppliedMigrations(dbClient);
     
     io:println(string `Total migrations: ${all.length()}`);
-    # io:println(string `Applied: ${applied.length()}`);
-    # io:println(string `Pending: ${(all.length() - applied.length())}`);
+    // io:println(string `Applied: ${applied.length()}`);
+    // io:println(string `Pending: ${(all.length() - applied.length())}`);
     
     return ();
 }
@@ -174,12 +171,12 @@ public function handleDbPushCommand(
 ) returns error? {
     io:println("Pushing schema to database...");
     
-    # TODO: Implement full flow
-    # IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
-    # map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
-    # SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
-    # string sql = check generateMigrationSql(diff, provider);
-    # check execSql(dbClient, sql);
+    // TODO: Implement full flow
+    // IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
+    // map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
+    // SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
+    // string sql = check generateMigrationSql(diff, provider);
+    // check execSql(dbClient, sql);
     
     io:println("✓ Schema pushed");
     
@@ -200,24 +197,24 @@ public function handleDbPullCommand(
 ) returns error? {
     io:println("Pulling schema from database...");
     
-    # TODO: Implement introspection and code generation
-    # IntrospectedSchema schema;
-    # if provider == "MYSQL" {
-    #     mysql:Client mysqlClient = <mysql:Client>dbClient;
-    #     schema = check introspectMysql(mysqlClient, database);
-    # } else {
-    #     postgresql:Client pgClient = <postgresql:Client>dbClient;
-    #     schema = check introspectPostgresql(pgClient, database);
-    # }
+    // TODO: Implement introspection and code generation
+    // IntrospectedSchema schema;
+    // if provider == "MYSQL" {
+    //     mysql:Client mysqlClient = <mysql:Client>dbClient;
+    //     schema = check introspectMysql(mysqlClient, database);
+    // } else {
+    //     postgresql:Client pgClient = <postgresql:Client>dbClient;
+    //     schema = check introspectPostgresql(pgClient, database);
+    // }
     
-    # string generatedCode = check generateRecordTypes(schema);
+    // string generatedCode = check generateRecordTypes(schema);
     
-    # if outputFile is string {
-    #     check file:writeString(outputFile, generatedCode);
-    #     io:println("✓ Schema written to " + outputFile);
-    # } else {
-    #     io:println(generatedCode);
-    # }
+    // if outputFile is string {
+    //     check file:writeString(outputFile, generatedCode);
+    //     io:println("✓ Schema written to " + outputFile);
+    // } else {
+    //     io:println(generatedCode);
+    // }
     
     io:println("✓ Schema pulled");
     
@@ -233,10 +230,10 @@ public function handleDbPullCommand(
 public function handleGenerateCommand(string projectDir) returns error? {
     io:println("Generating ORM code...");
     
-    # TODO: This would typically be triggered by the compiler plugin
-    # Check for entity annotations
-    # Generate CRUD methods
-    # Generate input/filter types
+    // TODO: This would typically be triggered by the compiler plugin
+    // Check for entity annotations
+    // Generate CRUD methods
+    // Generate input/filter types
     
     io:println("✓ ORM code generated");
     
