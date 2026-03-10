@@ -113,7 +113,9 @@ function setupMysqlIntegrationTests() returns error? {
     io:println("MySQL integration test setup complete");
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlCreateUser() returns error? {
     Client client = check getClient();
     
@@ -129,6 +131,7 @@ function testMysqlCreateUser() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreateUser]
 }
 function testMysqlFindUniqueUser() returns error? {
@@ -146,6 +149,7 @@ function testMysqlFindUniqueUser() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreateUser]
 }
 function testMysqlUpdateUser() returns error? {
@@ -159,7 +163,9 @@ function testMysqlUpdateUser() returns error? {
     test:assertEquals(updatedUser.email, "john@example.com");
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlCreateMultipleUsers() returns error? {
     Client client = check getClient();
     
@@ -176,6 +182,7 @@ function testMysqlCreateMultipleUsers() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreateMultipleUsers]
 }
 function testMysqlFindManyWithFilters() returns error? {
@@ -194,6 +201,7 @@ function testMysqlFindManyWithFilters() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreateMultipleUsers]
 }
 function testMysqlPaginationSkipTake() returns error? {
@@ -216,7 +224,9 @@ function testMysqlPaginationSkipTake() returns error? {
     test:assertNotEquals(page1[0].id, page2[0].id);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlCreatePostWithRelation() returns error? {
     Client client = check getClient();
     
@@ -239,6 +249,7 @@ function testMysqlCreatePostWithRelation() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreatePostWithRelation]
 }
 function testMysqlEagerLoadRelation() returns error? {
@@ -260,6 +271,7 @@ function testMysqlEagerLoadRelation() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "mysql"],
     dependsOn: [testMysqlCreatePostWithRelation]
 }
 function testMysqlOneToManyRelation() returns error? {
@@ -280,7 +292,9 @@ function testMysqlOneToManyRelation() returns error? {
     }
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlCountQuery() returns error? {
     Client client = check getClient();
     
@@ -291,7 +305,9 @@ function testMysqlCountQuery() returns error? {
     test:assertTrue(count > 0);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlDeleteOperation() returns error? {
     Client client = check getClient();
     
@@ -316,7 +332,9 @@ function testMysqlDeleteOperation() returns error? {
     test:assertTrue(found is ());
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlTransaction() returns error? {
     Client client = check getClient();
     
@@ -347,7 +365,9 @@ function testMysqlTransaction() returns error? {
     test:assertTrue(user2 is User);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlTransactionRollback() returns error? {
     Client client = check getClient();
     
@@ -370,7 +390,9 @@ function testMysqlTransactionRollback() returns error? {
     test:assertTrue(found is ());
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "mysql"]
+}
 function testMysqlRawQuery() returns error? {
     Client client = check getClient();
     

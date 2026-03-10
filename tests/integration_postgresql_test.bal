@@ -75,7 +75,9 @@ function setupPostgresqlIntegrationTests() returns error? {
     io:println("PostgreSQL integration test setup complete");
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlCreateUser() returns error? {
     Client client = check getPgClient();
     
@@ -90,6 +92,7 @@ function testPostgresqlCreateUser() returns error? {
 }
 
 @test:Config {
+    groups: ["integration", "postgresql"],
     dependsOn: [testPostgresqlCreateUser]
 }
 function testPostgresqlFindWithComplexFilters() returns error? {
@@ -115,7 +118,9 @@ function testPostgresqlFindWithComplexFilters() returns error? {
     test:assertTrue(users.length() >= 3);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlUpsert() returns error? {
     Client client = check getPgClient();
     
@@ -140,7 +145,9 @@ function testPostgresqlUpsert() returns error? {
     test:assertEquals(user2.id, firstId); // ID should remain the same
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlAggregation() returns error? {
     Client client = check getPgClient();
     
@@ -163,7 +170,9 @@ function testPostgresqlAggregation() returns error? {
     test:assertEquals(postCount, 3);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlManyToManyRelation() returns error? {
     Client client = check getPgClient();
     
@@ -213,7 +222,9 @@ function testPostgresqlManyToManyRelation() returns error? {
     }
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlNestedTransactionCommit() returns error? {
     Client client = check getPgClient();
     
@@ -241,7 +252,9 @@ function testPostgresqlNestedTransactionCommit() returns error? {
     test:assertEquals(finalCount, initialCount + 2);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlSelectProjection() returns error? {
     Client client = check getPgClient();
     
@@ -261,7 +274,9 @@ function testPostgresqlSelectProjection() returns error? {
     test:assertTrue(result is record {|string email; string name;|});
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlDeleteMany() returns error? {
     Client client = check getPgClient();
     
@@ -287,7 +302,9 @@ function testPostgresqlDeleteMany() returns error? {
     test:assertEquals(remainingCount, 0);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlRawQueryWithStreaming() returns error? {
     Client client = check getPgClient();
     
@@ -303,7 +320,9 @@ function testPostgresqlRawQueryWithStreaming() returns error? {
     test:assertTrue(count >= 0);
 }
 
-@test:Config {}
+@test:Config {
+    groups: ["integration", "postgresql"]
+}
 function testPostgresqlJsonSupport() returns error? {
     Client client = check getPgClient();
     

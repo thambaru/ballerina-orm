@@ -3,7 +3,7 @@
 # Integration Test Runner for Ballerina ORM
 # This script sets up Docker containers and runs integration tests
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -17,6 +17,22 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+TEST_FAILURE=0
+CONTAINERS_STARTED=0
+
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(docker compose)
+elif command -v docker-compose > /dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(docker-compose)
+else
+    echo -e "${RED}❌ Docker Compose is not available. Install Docker Compose and try again.${NC}"
+    exit 1
+fi
+
+compose() {
+    "${DOCKER_COMPOSE_CMD[@]}" -f docker-compose.test.yml "$@"
+}
+
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
     echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
@@ -26,13 +42,14 @@ fi
 # Function to wait for database to be ready
 wait_for_db() {
     local db_name=$1
+    local service_name=$2
     local max_attempts=30
     local attempt=1
     
     echo -e "${YELLOW}⏳ Waiting for ${db_name} to be ready...${NC}"
     
     while [ $attempt -le $max_attempts ]; do
-        if docker-compose -f docker-compose.test.yml ps | grep -q "healthy"; then
+        if compose ps "$service_name" | grep -q "healthy"; then
             echo -e "${GREEN}✅ ${db_name} is ready!${NC}"
             return 0
         fi
@@ -46,6 +63,28 @@ wait_for_db() {
     return 1
 }
 
+run_test_step() {
+    local test_name=$1
+    shift
+
+    if "$@"; then
+        echo -e "${GREEN}✅ ${test_name} passed${NC}"
+    else
+        echo -e "${RED}❌ ${test_name} failed${NC}"
+        TEST_FAILURE=1
+    fi
+}
+
+cleanup_containers() {
+    if [ "$CONTAINERS_STARTED" -eq 1 ]; then
+        echo ""
+        echo "🧹 Cleaning up containers..."
+        compose down
+    fi
+}
+
+trap cleanup_containers EXIT
+
 # Parse command line arguments
 TEST_TARGET="${1:-all}"
 
@@ -55,26 +94,23 @@ case $TEST_TARGET in
         
         echo ""
         echo "🐳 Starting database containers..."
-        docker-compose -f docker-compose.test.yml up -d
+        compose up -d
+        CONTAINERS_STARTED=1
         
-        wait_for_db "MySQL"
-        wait_for_db "PostgreSQL"
+        wait_for_db "MySQL" "mysql"
+        wait_for_db "PostgreSQL" "postgresql"
         
         echo ""
         echo "🧪 Running unit tests..."
-        bal test --groups unit || true
+        run_test_step "Unit tests" bal test --disable-groups integration
         
         echo ""
         echo "🔗 Running MySQL integration tests..."
-        bal test tests/integration_mysql_test.bal || true
+        run_test_step "MySQL integration tests" bal test --groups mysql
         
         echo ""
         echo "🐘 Running PostgreSQL integration tests..."
-        bal test tests/integration_postgresql_test.bal || true
-        
-        echo ""
-        echo "🧹 Cleaning up containers..."
-        docker-compose -f docker-compose.test.yml down
+        run_test_step "PostgreSQL integration tests" bal test --groups postgresql
         ;;
         
     "mysql")
@@ -82,17 +118,14 @@ case $TEST_TARGET in
         
         echo ""
         echo "🐳 Starting MySQL container..."
-        docker-compose -f docker-compose.test.yml up -d mysql
+        compose up -d mysql
+        CONTAINERS_STARTED=1
         
-        wait_for_db "MySQL"
+        wait_for_db "MySQL" "mysql"
         
         echo ""
         echo "🔗 Running MySQL integration tests..."
-        bal test tests/integration_mysql_test.bal
-        
-        echo ""
-        echo "🧹 Cleaning up..."
-        docker-compose -f docker-compose.test.yml down
+        run_test_step "MySQL integration tests" bal test --groups mysql
         ;;
         
     "postgresql")
@@ -100,17 +133,14 @@ case $TEST_TARGET in
         
         echo ""
         echo "🐳 Starting PostgreSQL container..."
-        docker-compose -f docker-compose.test.yml up -d postgresql
+        compose up -d postgresql
+        CONTAINERS_STARTED=1
         
-        wait_for_db "PostgreSQL"
+        wait_for_db "PostgreSQL" "postgresql"
         
         echo ""
         echo "🐘 Running PostgreSQL integration tests..."
-        bal test tests/integration_postgresql_test.bal
-        
-        echo ""
-        echo "🧹 Cleaning up..."
-        docker-compose -f docker-compose.test.yml down
+        run_test_step "PostgreSQL integration tests" bal test --groups postgresql
         ;;
         
     "unit")
@@ -118,12 +148,13 @@ case $TEST_TARGET in
         
         echo ""
         echo "🧪 Running unit tests..."
-        bal test --groups unit
+        run_test_step "Unit tests" bal test --disable-groups integration
         ;;
         
     "cleanup")
         echo "🧹 Cleaning up test containers and volumes..."
-        docker-compose -f docker-compose.test.yml down -v
+        compose down -v
+        CONTAINERS_STARTED=0
         echo -e "${GREEN}✅ Cleanup complete${NC}"
         ;;
         
@@ -142,4 +173,9 @@ case $TEST_TARGET in
 esac
 
 echo ""
-echo -e "${GREEN}✨ Test run complete!${NC}"
+if [ "$TEST_FAILURE" -eq 0 ]; then
+    echo -e "${GREEN}✨ Test run complete!${NC}"
+else
+    echo -e "${RED}❌ Test run completed with failures.${NC}"
+    exit 1
+fi
