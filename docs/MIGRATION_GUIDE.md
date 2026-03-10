@@ -119,7 +119,7 @@ public type Post record {|
     int authorId;
     
     @Relation {
-        relationType: MANY_TO_ONE,
+        'type: MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }
@@ -493,7 +493,7 @@ public type Post record {|
     int authorId;
     
     @Relation {
-        relationType: MANY_TO_ONE,
+        'type: MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }
@@ -514,7 +514,7 @@ public type Post record {|
     @Id int id;
     
     @Relation {
-        relationType: MANY_TO_MANY,
+        'type: MANY_TO_MANY,
         joinTable: "post_categories"
     }
     Category[]? categories;

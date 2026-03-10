@@ -13,9 +13,10 @@ public type SchemaError error<SchemaIssue>;
 
 # Input payload consumed by the runtime schema parser.
 #
-# This mirrors information extracted from annotations and record fields.
+# This is the normalized schema source currently produced manually or by compiler tooling.
 public type RawSchema record {|
     RawModel[] models;
+    Engine? defaultEngine = ();
 |};
 
 # Normalized source definition for a single model.
@@ -52,7 +53,7 @@ public type ModelDefinition record {|
     string name;
     string tableName;
     string? schema;
-    Engine engine;
+    Engine? engine = ();
     ColumnDefinition[] columns;
     map<ColumnDefinition> columnsByField;
     IndexDefinition[] indexes;
@@ -111,7 +112,35 @@ function schemaError(string code, string message, string? model = (), string? fi
 
 # Normalize a model name to a default snake_case plural table name.
 function toDefaultTableName(string modelName) returns string {
-    return string `${toSnakeCase(modelName)}s`;
+    return pluralizeSnakeCase(toSnakeCase(modelName));
+}
+
+function pluralizeSnakeCase(string tableName) returns string {
+    if tableName.endsWith("fe") {
+        return string `${tableName.substring(0, tableName.length() - 2)}ves`;
+    }
+    if tableName.endsWith("f") {
+        return string `${tableName.substring(0, tableName.length() - 1)}ves`;
+    }
+
+    int length = tableName.length();
+    if length > 1 && tableName.endsWith("y") {
+        string previous = tableName.substring(length - 2, length - 1);
+        if !isLowercaseVowel(previous) {
+            return string `${tableName.substring(0, length - 1)}ies`;
+        }
+    }
+
+    if tableName.endsWith("s") || tableName.endsWith("x") || tableName.endsWith("z") ||
+        tableName.endsWith("ch") || tableName.endsWith("sh") {
+        return string `${tableName}es`;
+    }
+
+    return string `${tableName}s`;
+}
+
+function isLowercaseVowel(string value) returns boolean {
+    return value == "a" || value == "e" || value == "i" || value == "o" || value == "u";
 }
 
 # Convert a PascalCase or camelCase identifier to snake_case.

@@ -73,7 +73,7 @@ function testRelationValidationFailure() {
                         name: "author",
                         ballerinaType: "User",
                         relation: {
-                            relationType: ONE_TO_ONE,
+                            'type: ONE_TO_ONE,
                             references: ["id"],
                             foreignKey: ["authorId"]
                         }
@@ -123,4 +123,94 @@ function testIndexValidationFailure() {
         SchemaIssue issue = result.detail();
         test:assertEquals(issue.code, "INDEX_FIELD_NOT_FOUND");
     }
+}
+
+@test:Config {}
+function testParseSchemaUsesSchemaDefaultEngine() {
+    RawSchema schemaSource = {
+        defaultEngine: POSTGRESQL,
+        models: [
+            {
+                name: "AuditLog",
+                fields: [
+                    {
+                        name: "id",
+                        ballerinaType: "int",
+                        id: true
+                    }
+                ]
+            }
+        ]
+    };
+
+    SchemaGraph result = checkpanic parseSchema(schemaSource);
+
+    ModelDefinition? maybeAuditLog = result.models.get("AuditLog");
+    test:assertTrue(maybeAuditLog is ModelDefinition);
+    ModelDefinition auditLog = <ModelDefinition>maybeAuditLog;
+    test:assertTrue(auditLog.engine is string);
+    test:assertEquals(auditLog.engine, POSTGRESQL);
+}
+
+@test:Config {}
+function testParseSchemaLeavesEngineUnsetWithoutDefault() {
+    RawSchema schemaSource = {
+        models: [
+            {
+                name: "Session",
+                fields: [
+                    {
+                        name: "id",
+                        ballerinaType: "int",
+                        id: true
+                    }
+                ]
+            }
+        ]
+    };
+
+    SchemaGraph result = checkpanic parseSchema(schemaSource);
+
+    ModelDefinition? maybeSession = result.models.get("Session");
+    test:assertTrue(maybeSession is ModelDefinition);
+    ModelDefinition sessionModel = <ModelDefinition>maybeSession;
+    test:assertTrue(sessionModel.engine is ());
+}
+
+@test:Config {}
+function testDefaultTableNamePluralization() {
+    RawSchema schemaSource = {
+        models: [
+            {
+                name: "Category",
+                fields: [
+                    {
+                        name: "id",
+                        ballerinaType: "int",
+                        id: true
+                    }
+                ]
+            },
+            {
+                name: "Address",
+                fields: [
+                    {
+                        name: "id",
+                        ballerinaType: "int",
+                        id: true
+                    }
+                ]
+            }
+        ]
+    };
+
+    SchemaGraph result = checkpanic parseSchema(schemaSource);
+
+    ModelDefinition? maybeCategory = result.models.get("Category");
+    test:assertTrue(maybeCategory is ModelDefinition);
+    test:assertEquals((<ModelDefinition>maybeCategory).tableName, "categories");
+
+    ModelDefinition? maybeAddress = result.models.get("Address");
+    test:assertTrue(maybeAddress is ModelDefinition);
+    test:assertEquals((<ModelDefinition>maybeAddress).tableName, "addresses");
 }

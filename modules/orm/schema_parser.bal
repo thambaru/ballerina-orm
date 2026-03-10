@@ -4,13 +4,14 @@
 public function parseSchema(RawSchema rawSchema) returns SchemaGraph|SchemaError {
     map<ModelDefinition> models = {};
     RelationEdge[] relationEdges = [];
+    Engine? defaultEngine = rawSchema.defaultEngine;
 
     foreach RawModel model in rawSchema.models {
         if models.hasKey(model.name) {
             return schemaError("DUPLICATE_MODEL", string `Duplicate model '${model.name}'.`, model.name);
         }
 
-        ModelDefinition|SchemaError parsedModel = parseModel(model);
+        ModelDefinition|SchemaError parsedModel = parseModel(model, defaultEngine);
         if parsedModel is SchemaError {
             return parsedModel;
         }
@@ -44,13 +45,13 @@ public function parseSchema(RawSchema rawSchema) returns SchemaGraph|SchemaError
 }
 
 # Parse a single raw model into a model definition.
-public function parseModel(RawModel rawModel) returns ModelDefinition|SchemaError {
+public function parseModel(RawModel rawModel, Engine? defaultEngine = ()) returns ModelDefinition|SchemaError {
     if rawModel.name.trim().length() == 0 {
         return schemaError("MODEL_NAME_REQUIRED", "Model name cannot be empty.");
     }
 
     string tableName = rawModel.entity.tableName ?: toDefaultTableName(rawModel.name);
-    Engine engine = rawModel.entity.engine ?: MYSQL;
+    Engine? engine = rawModel.entity.engine ?: defaultEngine;
 
     ColumnDefinition[] columns = [];
     map<ColumnDefinition> columnsByField = {};
@@ -67,7 +68,7 @@ public function parseModel(RawModel rawModel) returns ModelDefinition|SchemaErro
 
         RelationConfig? relationConfig = rawField.relation;
         if relationConfig is RelationConfig {
-            RelationType? relationType = relationConfig.'type ?: relationConfig.relationType;
+            RelationType? relationType = relationConfig.'type;
             if relationType is () {
                 return schemaError(
                     "RELATION_TYPE_REQUIRED",

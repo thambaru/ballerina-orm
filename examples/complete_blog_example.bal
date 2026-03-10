@@ -29,10 +29,10 @@ public type User record {|
     time:Utc updatedAt;
     
     // Relations
-    @orm:Relation {relationType: orm:ONE_TO_MANY}
+    @orm:Relation {'type: orm:ONE_TO_MANY}
     Post[]? posts;
     
-    @orm:Relation {relationType: orm:ONE_TO_ONE}
+    @orm:Relation {'type: orm:ONE_TO_ONE}
     UserProfile? profile;
 |};
 
@@ -54,7 +54,7 @@ public type UserProfile record {|
     string? location;
     
     @orm:Relation {
-        relationType: orm:ONE_TO_ONE,
+        'type: orm:ONE_TO_ONE,
         references: ["id"],
         foreignKey: ["userId"]
     }
@@ -93,19 +93,19 @@ public type Post record {|
     
     // Relations
     @orm:Relation {
-        relationType: orm:MANY_TO_ONE,
+        'type: orm:MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }
     User? author;
     
     @orm:Relation {
-        relationType: orm:MANY_TO_MANY,
+        'type: orm:MANY_TO_MANY,
         joinTable: "post_categories"
     }
     Category[]? categories;
     
-    @orm:Relation {relationType: orm:ONE_TO_MANY}
+    @orm:Relation {'type: orm:ONE_TO_MANY}
     Comment[]? comments;
 |};
 
@@ -152,14 +152,14 @@ public type Comment record {|
     
     // Relations
     @orm:Relation {
-        relationType: orm:MANY_TO_ONE,
+        'type: orm:MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["postId"]
     }
     Post? post;
     
     @orm:Relation {
-        relationType: orm:MANY_TO_ONE,
+        'type: orm:MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }

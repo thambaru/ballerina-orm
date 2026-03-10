@@ -18,12 +18,17 @@ These APIs allow **library consumers** to execute the plugin pipeline programmat
 ```ballerina
 import thambaru/bal_orm.orm;
 
-RawSchema schema = /* ...built from annotations or manually */;
+RawSchema schema = {
+    defaultEngine: orm:POSTGRESQL,
+    models: [/* ...normalized model metadata... */]
+};
 orm:PluginExecution execution = check orm:executeCompilerPlugin(schema);
 
 // execution.diagnostics => warnings/errors
 // execution.modelArtifacts => generated type/CRUD sources per model
 ```
+
+Today, `RawSchema` is still a normalized input model. Automatic extraction from `@orm:Entity` records is expected from compiler tooling; the library-level API does not yet reflect annotations at runtime on its own.
 
 ---
 

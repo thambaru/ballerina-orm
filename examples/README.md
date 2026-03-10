@@ -284,7 +284,7 @@ type Post record {|
     int authorId;
     
     @orm:Relation {
-        relationType: orm:MANY_TO_ONE,
+        'type: orm:MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }

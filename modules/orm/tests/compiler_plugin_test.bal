@@ -32,7 +32,7 @@ function testCompilerPluginGeneratesTypedArtifacts() {
                         name: "posts",
                         ballerinaType: "Post[]",
                         relation: {
-                            relationType: ONE_TO_MANY,
+                            'type: ONE_TO_MANY,
                             model: "Post"
                         }
                     },
@@ -72,7 +72,7 @@ function testCompilerPluginGeneratesTypedArtifacts() {
                         name: "author",
                         ballerinaType: "User",
                         relation: {
-                            relationType: ONE_TO_ONE,
+                            'type: ONE_TO_ONE,
                             model: "User",
                             references: ["id"],
                             foreignKey: ["authorId"]
@@ -141,7 +141,7 @@ function testCompilerPluginDetectsRelationTypeMismatch() {
                         name: "author",
                         ballerinaType: "User",
                         relation: {
-                            relationType: ONE_TO_ONE,
+                            'type: ONE_TO_ONE,
                             model: "User",
                             references: ["id"],
                             foreignKey: ["authorId"]
@@ -197,7 +197,7 @@ function testCompilerPluginWarnsOnMissingForeignKeyIndexes() {
                         name: "author",
                         ballerinaType: "User",
                         relation: {
-                            relationType: ONE_TO_ONE,
+                            'type: ONE_TO_ONE,
                             model: "User",
                             references: ["id"],
                             foreignKey: ["authorId"]

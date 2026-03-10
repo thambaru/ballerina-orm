@@ -10,10 +10,11 @@ public type Engine MYSQL|POSTGRESQL;
 # Supported relation kinds.
 public const ONE_TO_ONE = "ONE_TO_ONE";
 public const ONE_TO_MANY = "ONE_TO_MANY";
+public const MANY_TO_ONE = "MANY_TO_ONE";
 public const MANY_TO_MANY = "MANY_TO_MANY";
 
 # Relation type identifier.
-public type RelationType ONE_TO_ONE|ONE_TO_MANY|MANY_TO_MANY;
+public type RelationType ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY;
 
 # Entity-level mapping settings.
 public type EntityConfig record {|
@@ -42,7 +43,6 @@ public type IndexConfig record {|
 # Relation mapping settings.
 public type RelationConfig record {|
     RelationType 'type?;
-    RelationType relationType?;
     string model?;
     string[] references?;
     string[] foreignKey?;
@@ -56,6 +56,7 @@ public type Marker record {||};
 public annotation EntityConfig Entity on type;
 
 # Attach index metadata to a model record type.
+# Declared as an array so `@Index { ... }` can be repeated multiple times.
 public annotation IndexConfig[] Index on type;
 
 # Mark a field as part of the primary key.

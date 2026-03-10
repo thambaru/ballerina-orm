@@ -25,7 +25,7 @@ Marks a record type as a database entity (table).
 @Entity {
     tableName: string,  // Table name in database
     schema?: string,    // Schema name (PostgreSQL only)
-    engine?: Engine     // Storage engine (MySQL only)
+    engine?: Engine     // Optional override; otherwise resolved from schema/client context
 }
 ```
 
@@ -84,22 +84,24 @@ Defines a relationship between entities.
 
 ```ballerina
 @Relation {
-    relationType: RelationType,  // ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY
+    'type: RelationType,         // ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY
     references?: string[],       // Referenced field(s) in target model
     foreignKey?: string[],       // Foreign key field(s) in current model
     joinTable?: string          // Join table name (for MANY_TO_MANY)
 }
 ```
 
+Use the quoted field name `'type` because `type` is a Ballerina keyword.
+
 **Examples:**
 ```ballerina
 // ONE_TO_MANY
-@Relation {relationType: ONE_TO_MANY}
+@Relation {'type: ONE_TO_MANY}
 Post[]? posts;
 
 // MANY_TO_ONE
 @Relation {
-    relationType: MANY_TO_ONE,
+    'type: MANY_TO_ONE,
     references: ["id"],
     foreignKey: ["authorId"]
 }
@@ -107,7 +109,7 @@ User? author;
 
 // MANY_TO_MANY
 @Relation {
-    relationType: MANY_TO_MANY,
+    'type: MANY_TO_MANY,
     joinTable: "post_categories"
 }
 Category[]? categories;
@@ -116,6 +118,8 @@ Category[]? categories;
 ### @Index
 
 Creates an index on specified columns.
+
+`@Index` is declared as a repeatable annotation (`IndexConfig[]`), so you attach one index per annotation and repeat it for additional indexes.
 
 ```ballerina
 @Index {
@@ -700,10 +704,10 @@ type User record {|
     @Id int id;
     string name;
     
-    @Relation {relationType: ONE_TO_MANY}
+    @Relation {'type: ONE_TO_MANY}
     Post[]? posts;
     
-    @Relation {relationType: ONE_TO_ONE}
+    @Relation {'type: ONE_TO_ONE}
     Profile? profile;
 |};
 
@@ -714,7 +718,7 @@ type Post record {|
     int authorId;
     
     @Relation {
-        relationType: MANY_TO_ONE,
+        'type: MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }
@@ -848,12 +852,7 @@ public enum Provider {
 ### RelationType
 
 ```ballerina
-public enum RelationType {
-    ONE_TO_ONE,
-    ONE_TO_MANY,
-    MANY_TO_ONE,
-    MANY_TO_MANY
-}
+public type RelationType ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY;
 ```
 
 ### Engine

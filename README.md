@@ -52,7 +52,7 @@ public type User record {|
     @orm:CreatedAt
     time:Utc createdAt;
     
-    @orm:Relation {relationType: orm:ONE_TO_MANY}
+    @orm:Relation {'type: orm:ONE_TO_MANY}
     Post[]? posts;
 |};
 
@@ -68,7 +68,7 @@ public type Post record {|
     int authorId;
     
     @orm:Relation {
-        relationType: orm:MANY_TO_ONE,
+        'type: orm:MANY_TO_ONE,
         references: ["id"],
         foreignKey: ["authorId"]
     }
@@ -78,6 +78,8 @@ public type Post record {|
     time:Utc updatedAt;
 |};
 ```
+
+When you build a normalized `orm:RawSchema` manually instead of relying on compiler tooling, set `defaultEngine` on the schema or `engine` on each model. The parser no longer falls back to MySQL implicitly.
 
 ### Initialize the Client
 
