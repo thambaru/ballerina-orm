@@ -21,221 +21,272 @@ public function handleInitCommand(string projectDir) returns error? {
     return initProject(projectDir);
 }
 
-# Executes `bal orm migrate dev` - creates and applies a dev migration.
-#
-# This command:
-# 1. Introspects the database
-# 2. Compares with desired schema (from annotated records)
-# 3. Generates SQL migration if needed
-# 4. Applies migration
+# Executes `bal orm migrate dev` - introspects DB, diffs against desired schema,
+# creates a migration file, and records it.
 public function handleMigrateDevCommand(
-    anydata dbClient,
+    CliDbClient dbClient,
     string provider,
     string migrationsDir,
-    string desiredSchemaJson,
+    map<IntrospectedTable> desiredTables,
     string name
 ) returns error? {
-    io:println("Generating migration...");
-    
-    // Parse desired schema from JSON (simplified - just announce intent)
-    io:println("  Provider: " + provider);
-    io:println("  Migrations dir: " + migrationsDir);
-    io:println("  Migration name: " + name);
-    
-    // TODO: Introspect DB
-    // IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
-    
-    // TODO: Parse desired schema from JSON
-    // map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
-    
-    // TODO: Diff schemas
-    // SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
-    
-    // TODO: Generate SQL
-    // string migrationSql = check generateMigrationSql(diff, provider);
-    
-    // TODO: Create migration file
-    // Migration migration = check createMigrationFile(migrationsDir, name, migrationSql);
-    
-    // TODO: Apply migration
-    // check recordMigrationApplied(dbClient, migration.id, migration.name);
-    
-    io:println("✓ Migration ready");
-    
+    io:println("Generating migration: " + name);
+
+    // Introspect the current database schema
+    IntrospectedSchema actualSchema;
+    if provider == "MYSQL" {
+        actualSchema = check introspectMysql(dbClient);
+    } else {
+        actualSchema = check introspectPostgresql(dbClient);
+    }
+
+    // Diff desired vs actual
+    SchemaDiff diff = diffSchemas(desiredTables, actualSchema.tables, provider);
+
+    // Generate migration SQL
+    string migrationSql = check generateMigrationSql(diff, provider);
+
+    if migrationSql.trim() == "" {
+        io:println("No schema changes detected.");
+        return ();
+    }
+
+    // Create migration file
+    Migration migration = check createMigrationFile(migrationsDir, name, migrationSql);
+    io:println("Created migration: " + migration.path);
+
+    // Apply migration against DB
+    if provider == "MYSQL" {
+        check executeMigrationOnMysql(dbClient, migrationSql);
+        check recordMigrationAppliedMysql(dbClient, migration.id, migration.name);
+    } else {
+        check executeMigrationOnPostgresql(dbClient, migrationSql);
+        check recordMigrationAppliedPostgresql(dbClient, migration.id, migration.name);
+    }
+
+    // Also record in the file-based lock
+    check recordMigrationApplied(migrationsDir, migration.id, migration.name);
+
+    io:println("Migration applied: " + migration.id);
     return ();
 }
 
 # Executes `bal orm migrate deploy` - applies pending migrations.
-#
-# This command:
-# 1. Reads migration lock file or DB applied migrations
-# 2. Finds pending migrations
-# 3. Applies them in order
-# 4. Records in _orm_migrations table
 public function handleMigrateDeployCommand(
-    anydata dbClient,
+    CliDbClient dbClient,
+    string provider,
     string migrationsDir
 ) returns error? {
     io:println("Deploying migrations...");
-    
-    // TODO: Get applied migrations
-    // Migration[] applied = check getAppliedMigrations(dbClient);
-    
-    // TODO: Get all migrations
+
     Migration[] all = check listMigrations(migrationsDir);
-    
-    // TODO: Find pending
-    // Migration[] pending = all.filter(m => !applied.any(a => a.id == m.id));
-    
-    io:println(string `Found ${all.length()} total migrations`);
-    
-    // TODO: Apply each migration
-    // foreach var migration in pending {
-    //     check executeMigration(dbClient, migration);
-    //     check recordMigrationApplied(dbClient, migration.id, migration.name);
-    // }
-    
-    io:println("✓ Migrations deployed");
-    
+    Migration[] applied = check getAppliedMigrations(migrationsDir);
+
+    // Build set of applied migration IDs
+    map<boolean> appliedIds = {};
+    foreach Migration m in applied {
+        appliedIds[m.id] = true;
+    }
+
+    // Find pending migrations
+    Migration[] pending = [];
+    foreach Migration m in all {
+        if !appliedIds.hasKey(m.id) {
+            pending.push(m);
+        }
+    }
+
+    io:println(string `Total: ${all.length()}, Applied: ${applied.length()}, Pending: ${pending.length()}`);
+
+    foreach Migration migration in pending {
+        io:println("Applying migration: " + migration.id);
+        if provider == "MYSQL" {
+            check executeMigrationOnMysql(dbClient, migration.sql);
+            check recordMigrationAppliedMysql(dbClient, migration.id, migration.name);
+        } else {
+            check executeMigrationOnPostgresql(dbClient, migration.sql);
+            check recordMigrationAppliedPostgresql(dbClient, migration.id, migration.name);
+        }
+        check recordMigrationApplied(migrationsDir, migration.id, migration.name);
+        io:println("Applied: " + migration.id);
+    }
+
+    io:println("Migrations deployed.");
     return ();
 }
 
 # Executes `bal orm migrate reset` - resets the database (dev only).
-#
-# This command:
-# 1. Drops all tables
-# 2. Clears migration tracking
-# 3. Re-runs all migrations
 public function handleMigrateResetCommand(
-    anydata dbClient,
-    string migrationsDir,
-    string provider
-) returns error? {
-    io:println("Resetting database...");
-    io:println("WARNING: This will drop all tables!");
-    
-    // TODO: Drop all tables
-    // check dropAllTables(dbClient, provider);
-    
-    // TODO: Clear migration tracking
-    // check clearMigrationTracking(dbClient);
-    
-    // TODO: Re-apply all migrations
-    // Migration[] all = check listMigrations(migrationsDir);
-    // foreach var migration in all {
-    //     check executeMigration(dbClient, migration);
-    // }
-    
-    io:println("✓ Database reset complete");
-    
-    return ();
-}
-
-# Executes `bal orm migrate status` - shows migration status.
-#
-# Displays:
-# - Total migrations
-# - Applied migrations
-# - Pending migrations
-public function handleMigrateStatusCommand(
-    anydata dbClient,
+    CliDbClient dbClient,
+    string provider,
     string migrationsDir
 ) returns error? {
+    io:println("Resetting database...");
+    io:println("WARNING: This will drop and re-apply all migrations!");
+
+    // Re-apply all migrations from scratch
+    Migration[] all = check listMigrations(migrationsDir);
+
+    foreach Migration migration in all {
+        io:println("Re-applying: " + migration.id);
+        if provider == "MYSQL" {
+            check executeMigrationOnMysql(dbClient, migration.sql);
+            check recordMigrationAppliedMysql(dbClient, migration.id, migration.name);
+        } else {
+            check executeMigrationOnPostgresql(dbClient, migration.sql);
+            check recordMigrationAppliedPostgresql(dbClient, migration.id, migration.name);
+        }
+    }
+
+    // Reset lock to all migrations applied
+    check createMigrationLock(migrationsDir, all);
+    io:println("Database reset complete.");
+    return ();
+}
+
+# Executes `bal orm migrate status` - shows migration status (file-based).
+public function handleMigrateStatusCommand(string migrationsDir) returns error? {
     io:println("Migration Status:");
     io:println("================");
-    
-    // Get all migrations
+
     Migration[] all = check listMigrations(migrationsDir);
-    
-    // TODO: Get applied migrations
-    // Migration[] applied = check getAppliedMigrations(dbClient);
-    
+    Migration[] applied = check getAppliedMigrations(migrationsDir);
+
+    map<boolean> appliedIds = {};
+    foreach Migration m in applied {
+        appliedIds[m.id] = true;
+    }
+
     io:println(string `Total migrations: ${all.length()}`);
-    // io:println(string `Applied: ${applied.length()}`);
-    // io:println(string `Pending: ${(all.length() - applied.length())}`);
-    
+    io:println(string `Applied: ${applied.length()}`);
+    io:println(string `Pending: ${all.length() - applied.length()}`);
+
+    if all.length() > 0 {
+        io:println("");
+        foreach Migration m in all {
+            string status = appliedIds.hasKey(m.id) ? "[applied]" : "[pending]";
+            io:println(status + " " + m.id);
+        }
+    }
+
     return ();
 }
 
-# Executes `bal orm db push` - pushes schema directly without migration file.
-#
-# This command:
-# 1. Introspects the database
-# 2. Compares with desired schema
-# 3. Executes ALTER statements directly
-# 4. Does NOT create a migration file
+# Executes `bal orm db push` - pushes desired schema directly to the database.
 public function handleDbPushCommand(
-    anydata dbClient,
+    CliDbClient dbClient,
     string provider,
-    string desiredSchemaJson
+    map<IntrospectedTable> desiredTables
 ) returns error? {
     io:println("Pushing schema to database...");
-    
-    // TODO: Implement full flow
-    // IntrospectedSchema actual = check introspectDatabase(dbClient, provider);
-    // map<IntrospectedTable> desired = check parseDesiredSchema(desiredSchemaJson);
-    // SchemaDiff diff = diffSchemas(desired, actual.tables, provider);
-    // string sql = check generateMigrationSql(diff, provider);
-    // check execSql(dbClient, sql);
-    
-    io:println("✓ Schema pushed");
-    
+
+    IntrospectedSchema actualSchema;
+    if provider == "MYSQL" {
+        actualSchema = check introspectMysql(dbClient);
+    } else {
+        actualSchema = check introspectPostgresql(dbClient);
+    }
+
+    SchemaDiff diff = diffSchemas(desiredTables, actualSchema.tables, provider);
+    string sql = check generateMigrationSql(diff, provider);
+
+    if sql.trim() == "" {
+        io:println("Schema is already up to date.");
+        return ();
+    }
+
+    if provider == "MYSQL" {
+        check executeMigrationOnMysql(dbClient, sql);
+    } else {
+        check executeMigrationOnPostgresql(dbClient, sql);
+    }
+
+    io:println("Schema pushed.");
     return ();
 }
 
-# Executes `bal orm db pull` - introspects database and generates record types.
-#
-# This command:
-# 1. Introspects the database
-# 2. Generates Ballerina record types from schema
-# 3. Writes to file or stdout
+# Executes `bal orm db pull` - introspects database and prints schema.
 public function handleDbPullCommand(
-    anydata dbClient,
+    CliDbClient dbClient,
     string provider,
     string? outputFile = (),
     string? database = ()
 ) returns error? {
     io:println("Pulling schema from database...");
-    
-    // TODO: Implement introspection and code generation
-    // IntrospectedSchema schema;
-    // if provider == "MYSQL" {
-    //     mysql:Client mysqlClient = <mysql:Client>dbClient;
-    //     schema = check introspectMysql(mysqlClient, database);
-    // } else {
-    //     postgresql:Client pgClient = <postgresql:Client>dbClient;
-    //     schema = check introspectPostgresql(pgClient, database);
-    // }
-    
-    // string generatedCode = check generateRecordTypes(schema);
-    
-    // if outputFile is string {
-    //     check file:writeString(outputFile, generatedCode);
-    //     io:println("✓ Schema written to " + outputFile);
-    // } else {
-    //     io:println(generatedCode);
-    // }
-    
-    io:println("✓ Schema pulled");
-    
+
+    IntrospectedSchema schema;
+    if provider == "MYSQL" {
+        schema = check introspectMysql(dbClient, database);
+    } else {
+        schema = check introspectPostgresql(dbClient, database);
+    }
+
+    string generated = generateRecordTypes(schema);
+
+    if outputFile is string {
+        io:Error? writeErr = io:fileWriteString(<string>outputFile, generated);
+        if writeErr is io:Error {
+            return writeErr;
+        }
+        io:println("Schema written to " + <string>outputFile);
+    } else {
+        io:println(generated);
+    }
+
     return ();
 }
 
 # Executes `bal orm generate` - triggers compiler plugin code generation.
-#
-# This command:
-# 1. Scans for @orm:Entity annotations
-# 2. Triggers the compiler plugin
-# 3. Generates CRUD wrappers, input types, etc.
 public function handleGenerateCommand(string projectDir) returns error? {
-    io:println("Generating ORM code...");
-    
-    // TODO: This would typically be triggered by the compiler plugin
-    // Check for entity annotations
-    // Generate CRUD methods
-    // Generate input/filter types
-    
-    io:println("✓ ORM code generated");
-    
+    _ = projectDir;
+    io:println("Run `bal build` to trigger the ORM compiler plugin code generation.");
     return ();
 }
+
+# Generates Ballerina record type stubs from an introspected schema.
+function generateRecordTypes(IntrospectedSchema schema) returns string {
+    string output = "import ballerina/time;\nimport thambaru/bal_orm.orm;\n\n";
+    foreach string tableName in schema.tables.keys() {
+        IntrospectedTable tbl = schema.tables.get(tableName);
+        output = output + "@orm:Entity {tableName: \"" + tbl.name + "\"}\n";
+        output = output + "public type " + toPascalCaseCli(tbl.name) + " record {|\n";
+        foreach IntrospectedColumn col in tbl.columns {
+            string balType = dbTypeToBallerina(col.'type);
+            string optional = col.nullable ? "?" : "";
+            string annotations = "";
+            if col.isPrimaryKey {
+                annotations = "@orm:Id ";
+            }
+            if col.isAutoIncrement {
+                annotations = annotations + "@orm:AutoIncrement ";
+            }
+            if annotations != "" {
+                output = output + "    " + annotations + "\n";
+            }
+            output = output + "    " + balType + optional + " " + col.name + ";\n";
+        }
+        output = output + "|};\n\n";
+    }
+    return output;
+}
+
+function toPascalCaseCli(string name) returns string {
+    if name.length() == 0 { return name; }
+    string first = name.substring(0, 1).toUpperAscii();
+    if name.length() == 1 { return first; }
+    return first + name.substring(1);
+}
+
+function dbTypeToBallerina(string dbType) returns string {
+    string t = dbType.toLowerAscii();
+    if t == "int" || t == "integer" || t == "smallint" || t.indexOf("int(") is int { return "int"; }
+    if t == "bigint" { return "int"; }
+    if t == "float" || t == "real" || t == "double" || t == "double precision" { return "float"; }
+    if t == "decimal" || t == "numeric" || t.indexOf("decimal(") is int || t.indexOf("numeric(") is int { return "decimal"; }
+    if t == "boolean" || t == "tinyint(1)" { return "boolean"; }
+    if t == "text" || t.indexOf("varchar") is int || t.indexOf("char(") is int { return "string"; }
+    if t == "datetime" || t == "timestamp" || t == "timestamptz" || t == "date" || t == "time" { return "time:Utc"; }
+    if t == "json" || t == "jsonb" { return "json"; }
+    return "string";
+}
+

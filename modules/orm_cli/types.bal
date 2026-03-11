@@ -1,7 +1,12 @@
 import ballerina/time;
+import ballerina/sql;
 
 # Migration status type.
 public type MigrationStatus "PENDING" | "APPLIED";
+
+# Common database client type for CLI operations (both MySQL and PostgreSQL
+# extend sql:Client, so this avoids structural-equivalence narrowing issues).
+public type CliDbClient sql:Client;
 
 # Represents a single migration file.
 public type Migration record {|
@@ -77,6 +82,8 @@ public type SchemaDiffItem record {|
     string? oldValue = ();
     string? newValue = ();
     string description;
+    IntrospectedTable? tableDef = ();
+    IntrospectedColumn? columnDef = ();
 |};
 
 # Migration action details.
