@@ -216,10 +216,40 @@ public class QueryBuilder {
 
 # Best-effort model type name extraction from `typedesc` value.
 function extractModelName(typedesc<anydata> modelType) returns string {
-    string typeString = modelType.toString();
+    string typeString = modelType.toString().trim();
+    int end = typeString.length();
+    while end > 0 {
+        string c = typeString.substring(end - 1, end);
+        if isIdentifierChar(c) {
+            break;
+        }
+        end -= 1;
+    }
+
+    int startIndex = end;
+    while startIndex > 0 {
+        string c = typeString.substring(startIndex - 1, startIndex);
+        if !isIdentifierChar(c) {
+            break;
+        }
+        startIndex -= 1;
+    }
+
+    if startIndex < end {
+        return typeString.substring(startIndex, end);
+    }
+
     int? moduleSeparator = typeString.lastIndexOf(":");
     if moduleSeparator is int {
         return typeString.substring(moduleSeparator + 1);
     }
+
     return typeString;
+}
+
+function isIdentifierChar(string value) returns boolean {
+    return (value >= "a" && value <= "z") ||
+        (value >= "A" && value <= "Z") ||
+        (value >= "0" && value <= "9") ||
+        value == "_";
 }

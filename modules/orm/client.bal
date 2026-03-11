@@ -1,3 +1,4 @@
+import ballerina/sql;
 import ballerinax/mysql;
 import ballerinax/mysql.driver as _;
 import ballerinax/postgresql;
@@ -16,7 +17,7 @@ public class Client {
     public function init(ClientConfig config) returns error? {
         NormalizedClientConfig normalized = check normalizeClientConfig(config);
         self.provider = normalized.provider;
-        self.config = normalized;
+        self.config = redactedConfig(normalized);
 
         if normalized.provider == MYSQL {
             mysql:Client|error dbClient = new (
@@ -60,8 +61,72 @@ public class Client {
         return self.nativeClient;
     }
 
+    # Convert a query plan to SQL and execute it as a read query.
+    #
+    # Use this for `findMany`, `findFirst`, `findUnique`, `count`, and `aggregate` operations.
+    public transactional function query(QueryPlan plan) returns stream<record {}, sql:Error?>|SchemaError|ClientError|sql:Error {
+        if !isReadOperation(plan.operation) {
+            return clientError(
+                "CLIENT_QUERY_OPERATION_INVALID",
+                string `Operation '${plan.operation}' cannot be executed with query().`
+            );
+        }
+
+        SqlQuery sqlQuery = check toSql(plan, self.provider);
+        sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery(sqlQuery, self.provider);
+        return self.rawQueryParameterized(parameterizedQuery);
+    }
+
+    # Convert a query plan to SQL and execute it as a write query.
+    #
+    # Use this for `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, and `deleteMany` operations.
+    public transactional function execute(QueryPlan plan) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
+        if !isWriteOperation(plan.operation) {
+            return clientError(
+                "CLIENT_EXECUTE_OPERATION_INVALID",
+                string `Operation '${plan.operation}' cannot be executed with execute().`
+            );
+        }
+
+        SqlQuery sqlQuery = check toSql(plan, self.provider);
+        sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery(sqlQuery, self.provider);
+        return self.rawExecuteParameterized(parameterizedQuery);
+    }
+
+    # Execute raw SQL query text with positional parameters.
+    public transactional function rawQuery(string text, anydata... params) returns stream<record {}, sql:Error?>|ClientError|sql:Error {
+        sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
+        return self.rawQueryParameterized(parameterizedQuery);
+    }
+
+    # Execute raw SQL statement text with positional parameters.
+    public transactional function rawExecute(string text, anydata... params) returns sql:ExecutionResult|ClientError|sql:Error {
+        sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
+        return self.rawExecuteParameterized(parameterizedQuery);
+    }
+
+    function rawQueryParameterized(sql:ParameterizedQuery parameterizedQuery) returns stream<record {}, sql:Error?>|sql:Error {
+        if self.provider == MYSQL {
+            mysql:Client dbClient = <mysql:Client>self.nativeClient;
+            return dbClient->query(parameterizedQuery);
+        }
+
+        postgresql:Client dbClient = <postgresql:Client>self.nativeClient;
+        return dbClient->query(parameterizedQuery);
+    }
+
+    function rawExecuteParameterized(sql:ParameterizedQuery parameterizedQuery) returns sql:ExecutionResult|sql:Error {
+        if self.provider == MYSQL {
+            mysql:Client dbClient = <mysql:Client>self.nativeClient;
+            return dbClient->execute(parameterizedQuery);
+        }
+
+        postgresql:Client dbClient = <postgresql:Client>self.nativeClient;
+        return dbClient->execute(parameterizedQuery);
+    }
+
     # Close the underlying database client.
-    public isolated function close() returns error? {
+    public function close() returns error? {
         if self.provider == MYSQL {
             mysql:Client dbClient = <mysql:Client>self.nativeClient;
             return dbClient.close();
@@ -70,4 +135,122 @@ public class Client {
         postgresql:Client dbClient = <postgresql:Client>self.nativeClient;
         return dbClient.close();
     }
+}
+
+# Convert generated SQL payload to a sql:ParameterizedQuery.
+public function toParameterizedSqlQuery(SqlQuery sqlQuery, Engine provider) returns sql:ParameterizedQuery|ClientError {
+    if provider == MYSQL {
+        return buildMysqlParameterizedQuery(sqlQuery.text, sqlQuery.parameters);
+    }
+    return buildPostgresqlParameterizedQuery(sqlQuery.text, sqlQuery.parameters);
+}
+
+function buildMysqlParameterizedQuery(string text, anydata[] parameters) returns sql:ParameterizedQuery|ClientError {
+    string[] strings = [];
+    sql:Value[] values = [];
+    string current = "";
+
+    int parameterIndex = 0;
+    int index = 0;
+    while index < text.length() {
+        string c = text.substring(index, index + 1);
+        if c == "?" {
+            if parameterIndex >= parameters.length() {
+                return clientError(
+                    "CLIENT_SQL_PARAMETER_MISMATCH",
+                    "SQL contains more placeholders than provided parameters."
+                );
+            }
+
+            strings.push(current);
+            current = "";
+            sql:Value value = check toSqlValue(parameters[parameterIndex], parameterIndex + 1);
+            values.push(value);
+            parameterIndex += 1;
+        } else {
+            current = string `${current}${c}`;
+        }
+        index += 1;
+    }
+
+    strings.push(current);
+    if parameterIndex != parameters.length() {
+        return clientError(
+            "CLIENT_SQL_PARAMETER_MISMATCH",
+            "More SQL parameters were provided than placeholders in the query."
+        );
+    }
+
+    return assembleParameterizedQuery(strings, values);
+}
+
+function buildPostgresqlParameterizedQuery(string text, anydata[] parameters) returns sql:ParameterizedQuery|ClientError {
+    string[] strings = [];
+    sql:Value[] values = [];
+
+    int cursor = 0;
+    int parameterIndex = 0;
+    while parameterIndex < parameters.length() {
+        string token = "$" + (parameterIndex + 1).toString();
+        int? tokenIndex = text.indexOf(token, cursor);
+        if tokenIndex is () {
+            return clientError(
+                "CLIENT_SQL_PARAMETER_MISMATCH",
+                string `Missing placeholder '${token}' in PostgreSQL SQL text.`
+            );
+        }
+
+        int position = tokenIndex;
+        strings.push(text.substring(cursor, position));
+        sql:Value value = check toSqlValue(parameters[parameterIndex], parameterIndex + 1);
+        values.push(value);
+        cursor = position + token.length();
+        parameterIndex += 1;
+    }
+
+    string unexpectedToken = "$" + (parameters.length() + 1).toString();
+    if text.indexOf(unexpectedToken, cursor) is int {
+        return clientError(
+            "CLIENT_SQL_PARAMETER_MISMATCH",
+            "SQL contains more placeholders than provided parameters."
+        );
+    }
+
+    strings.push(text.substring(cursor));
+    return assembleParameterizedQuery(strings, values);
+}
+
+function assembleParameterizedQuery(string[] strings, sql:Value[] values) returns sql:ParameterizedQuery {
+    sql:ParameterizedQuery parameterizedQuery = ``;
+    parameterizedQuery.strings = strings.cloneReadOnly();
+    parameterizedQuery.insertions = values;
+    return parameterizedQuery;
+}
+
+function toSqlValue(anydata value, int index) returns sql:Value|ClientError {
+    if value is sql:Value {
+        return value;
+    }
+
+    return clientError(
+        "CLIENT_SQL_PARAMETER_TYPE_UNSUPPORTED",
+        string `SQL parameter at position ${index.toString()} is not supported by sql:Value.`
+    );
+}
+
+function redactedConfig(NormalizedClientConfig config) returns NormalizedClientConfig {
+    NormalizedClientConfig safe = config;
+    safe.password = ();
+    return safe;
+}
+
+function isReadOperation(QueryOperation operation) returns boolean {
+    return operation == FIND_MANY || operation == FIND_FIRST || operation == FIND_UNIQUE ||
+        operation == COUNT || operation == AGGREGATE;
+}
+
+function isWriteOperation(QueryOperation operation) returns boolean {
+    return operation == CREATE || operation == CREATE_MANY || operation == UPDATE ||
+        operation == UPDATE_MANY || operation == UPSERT || operation == DELETE ||
+        operation == DELETE_MANY;
 }

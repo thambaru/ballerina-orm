@@ -1,3 +1,4 @@
+import ballerina/sql;
 import ballerina/test;
 
 @test:Config {}
@@ -53,5 +54,46 @@ function testNormalizeClientConfigProviderMismatch() {
     if normalized is ClientError {
         ClientErrorDetail detail = normalized.detail();
         test:assertEquals(detail.code, "CLIENT_PROVIDER_MISMATCH");
+    }
+}
+
+@test:Config {}
+function testToParameterizedSqlQueryForMysql() {
+    sql:ParameterizedQuery|ClientError parameterized = toParameterizedSqlQuery({
+        text: "SELECT * FROM users WHERE id = ? AND status = ?",
+        parameters: [10, "ACTIVE"]
+    }, MYSQL);
+
+    test:assertTrue(parameterized is sql:ParameterizedQuery);
+    if parameterized is sql:ParameterizedQuery {
+        test:assertEquals(parameterized.strings, ["SELECT * FROM users WHERE id = ", " AND status = ", ""]);
+        test:assertEquals(parameterized.insertions, [10, "ACTIVE"]);
+    }
+}
+
+@test:Config {}
+function testToParameterizedSqlQueryForPostgresql() {
+    sql:ParameterizedQuery|ClientError parameterized = toParameterizedSqlQuery({
+        text: "SELECT * FROM \"users\" WHERE \"id\" = $1 AND \"status\" = $2",
+        parameters: [25, "ACTIVE"]
+    }, POSTGRESQL);
+
+    test:assertTrue(parameterized is sql:ParameterizedQuery);
+    if parameterized is sql:ParameterizedQuery {
+        test:assertEquals(parameterized.strings, ["SELECT * FROM \"users\" WHERE \"id\" = ", " AND \"status\" = ", ""]);
+        test:assertEquals(parameterized.insertions, [25, "ACTIVE"]);
+    }
+}
+
+@test:Config {}
+function testToParameterizedSqlQueryMismatch() {
+    sql:ParameterizedQuery|ClientError parameterized = toParameterizedSqlQuery({
+        text: "SELECT * FROM users WHERE id = ?",
+        parameters: [10, "EXTRA"]
+    }, MYSQL);
+
+    test:assertTrue(parameterized is ClientError);
+    if parameterized is ClientError {
+        test:assertEquals(parameterized.detail().code, "CLIENT_SQL_PARAMETER_MISMATCH");
     }
 }

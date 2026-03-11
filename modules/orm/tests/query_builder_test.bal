@@ -26,7 +26,7 @@ function testFindManySqlForPostgresql() {
 
     test:assertEquals(
         sql.text,
-        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1) AND (\"age\" >= $2) ORDER BY \"created_at\" DESC LIMIT 20 OFFSET 10"
+        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\') AND (\"age\" >= $2) ORDER BY \"created_at\" DESC LIMIT 20 OFFSET 10"
     );
     test:assertEquals(sql.parameters, ["%@example.com%", 18]);
 }
@@ -98,9 +98,23 @@ function testStringFilterOperators() {
     
     test:assertEquals(
         sql.text,
-        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1) AND (\"name\" LIKE $2) AND (\"bio\" LIKE $3)"
+        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\') AND (\"name\" LIKE $2 ESCAPE '\\\\') AND (\"bio\" LIKE $3 ESCAPE '\\\\')"
     );
     test:assertEquals(sql.parameters, ["admin%", "%Smith", "%developer%"]);
+}
+
+@test:Config {}
+function testLikeWildcardEscaping() {
+    QueryPlan plan = fromModel("User")
+        .'where({
+            email: {contains: "100%_ok"}
+        })
+        .findMany();
+
+    SqlQuery sql = checkpanic toSql(plan, POSTGRESQL);
+
+    test:assertEquals(sql.text, "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\')");
+    test:assertEquals(sql.parameters, ["%100\\%\\_ok%"]);
 }
 
 @test:Config {}
@@ -130,9 +144,24 @@ function testUpdateSql() {
     
     test:assertEquals(
         sql.text,
-        "UPDATE \"users\" SET \"name\" = $1, \"status\" = $2 WHERE (\"id\" = $3) LIMIT 1"
+        "UPDATE \"users\" SET \"name\" = $1, \"status\" = $2 WHERE ctid IN (SELECT ctid FROM \"users\" WHERE (\"id\" = $3) LIMIT 1)"
     );
     test:assertEquals(sql.parameters, ["Updated Name", "ACTIVE", 5]);
+}
+
+@test:Config {}
+function testDeleteSingleSqlPostgresql() {
+    QueryPlan plan = fromModel("User")
+        .'where({id: {'equals: 9}})
+        .delete();
+
+    SqlQuery sql = checkpanic toSql(plan, POSTGRESQL);
+
+    test:assertEquals(
+        sql.text,
+        "DELETE FROM \"users\" WHERE ctid IN (SELECT ctid FROM \"users\" WHERE (\"id\" = $1) LIMIT 1)"
+    );
+    test:assertEquals(sql.parameters, [9]);
 }
 
 @test:Config {}
@@ -196,10 +225,12 @@ function testIncludeOneToMany() {
         .'where({id: {'equals: 1}})
         .findFirst();
 
-    SqlQuery sql = checkpanic toSql(plan, POSTGRESQL);
-    
-    // Include planning currently does not generate JOIN clauses in toSql().
-    test:assertTrue(sql.text.includes("SELECT") && sql.text.includes("FROM"));
+    SqlQuery|SchemaError sqlOrError = toSql(plan, POSTGRESQL);
+    test:assertTrue(sqlOrError is SchemaError);
+
+    if sqlOrError is SchemaError {
+        test:assertEquals(sqlOrError.detail().code, "QUERY_INCLUDE_UNSUPPORTED");
+    }
 }
 
 @test:Config {}
@@ -235,11 +266,63 @@ function testUpsertSql() {
             {name: "Test User Updated"}
         );
 
-    SqlQuery|SchemaError sqlOrError = toSql(plan, MYSQL);
+    SqlQuery sql = checkpanic toSql(plan, MYSQL);
+    test:assertEquals(
+        sql.text,
+        "INSERT INTO `users` (`email`, `name`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `name` = ?"
+    );
+    test:assertEquals(sql.parameters, ["test@example.com", "Test User", "Test User Updated"]);
+}
+
+@test:Config {}
+function testUpsertSqlForPostgresql() {
+    QueryPlan plan = fromModel("User")
+        .'where({email: {'equals: "test@example.com"}})
+        .upsert(
+            {email: "test@example.com", name: "Test User"},
+            {name: "Test User Updated"}
+        );
+
+    SqlQuery sql = checkpanic toSql(plan, POSTGRESQL);
+    test:assertEquals(
+        sql.text,
+        "INSERT INTO \"users\" (\"email\", \"name\") VALUES ($1, $2) ON CONFLICT (\"email\") DO UPDATE SET \"name\" = $3"
+    );
+    test:assertEquals(sql.parameters, ["test@example.com", "Test User", "Test User Updated"]);
+}
+
+@test:Config {}
+function testUpsertSqlForPostgresqlRequiresConflictWhere() {
+    QueryPlan plan = fromModel("User")
+        .upsert(
+            {email: "test@example.com", name: "Test User"},
+            {name: "Test User Updated"}
+        );
+
+    SqlQuery|SchemaError sqlOrError = toSql(plan, POSTGRESQL);
     test:assertTrue(sqlOrError is SchemaError);
 
     if sqlOrError is SchemaError {
-        test:assertEquals(sqlOrError.detail().code, "QUERY_UPSERT_UNSUPPORTED");
+        test:assertEquals(sqlOrError.detail().code, "QUERY_UPSERT_CONFLICT_REQUIRED");
+    }
+}
+
+@test:Config {}
+function testNestedWritePayloadIsRejected() {
+    QueryPlan plan = fromModel("User").create({
+        email: "nested@test.com",
+        posts: {
+            create: [
+                {title: "hello"}
+            ]
+        }
+    });
+
+    SqlQuery|SchemaError sqlOrError = toSql(plan, POSTGRESQL);
+    test:assertTrue(sqlOrError is SchemaError);
+
+    if sqlOrError is SchemaError {
+        test:assertEquals(sqlOrError.detail().code, "QUERY_NESTED_WRITE_UNSUPPORTED");
     }
 }
 
@@ -274,4 +357,19 @@ function testDialectDifferencesMysqlVsPostgresql() {
     // MySQL uses ?, PostgreSQL uses $1, $2, etc.
     test:assertTrue(mysqlSql.text.includes("?"));
     test:assertTrue(pgSql.text.includes("$1"));
+}
+
+@test:Config {}
+function testIdentifierEscaping() {
+    QueryPlan mysqlPlan = fromModel("User")
+        .'table("unsafe`name")
+        .findMany();
+    SqlQuery mysqlSql = checkpanic toSql(mysqlPlan, MYSQL);
+    test:assertTrue(mysqlSql.text.includes("`unsafe``name`"));
+
+    QueryPlan pgPlan = fromModel("User")
+        .'table("unsafe\"name")
+        .findMany();
+    SqlQuery pgSql = checkpanic toSql(pgPlan, POSTGRESQL);
+    test:assertTrue(pgSql.text.includes("\"unsafe\"\"name\""));
 }

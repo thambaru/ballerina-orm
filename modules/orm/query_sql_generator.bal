@@ -66,11 +66,12 @@ public function toSql(QueryPlan plan, Engine engine = MYSQL) returns SqlQuery|Sc
     }
 
     if plan.operation == UPSERT {
-        return schemaError(
-            "QUERY_UPSERT_UNSUPPORTED",
-            "Upsert SQL generation is not implemented yet.",
-            plan.model
-        );
+        UpsertInput upsertInput = check requireUpsert(plan);
+        string upsertSql = check buildUpsertSql(plan, tableName, upsertInput, engine, state);
+        return {
+            text: upsertSql,
+            parameters: state.parameters
+        };
     }
 
     return schemaError("QUERY_OPERATION_UNSUPPORTED", string `Unsupported operation '${plan.operation}'.`, plan.model);
@@ -108,7 +109,27 @@ function requireAggregate(QueryPlan plan) returns AggregateInput|SchemaError {
     return schemaError("QUERY_AGGREGATE_REQUIRED", "AGGREGATE requires an aggregate payload.", plan.model);
 }
 
+function requireUpsert(QueryPlan plan) returns UpsertInput|SchemaError {
+    UpsertInput? upsertInput = plan.upsert;
+    if upsertInput is UpsertInput {
+        return upsertInput;
+    }
+    return schemaError("QUERY_UPSERT_REQUIRED", "UPSERT requires create and update payloads.", plan.model);
+}
+
 function buildSelectSql(QueryPlan plan, string tableName, Engine engine, SqlBuildState state) returns string|SchemaError {
+    IncludeInput? includeInput = plan.include;
+    if includeInput is IncludeInput {
+        string[] relations = includedRelations(includeInput);
+        if relations.length() > 0 {
+            return schemaError(
+                "QUERY_INCLUDE_UNSUPPORTED",
+                "Eager loading SQL generation is not implemented yet. Use separate relation queries.",
+                plan.model
+            );
+        }
+    }
+
     string projection = buildSelectProjection(plan.'select, engine);
     string sqlText = string `SELECT ${projection} FROM ${quoteIdentifier(engine, tableName)}`;
 
@@ -148,6 +169,11 @@ function buildInsertSql(string tableName, map<anydata> payload, Engine engine, S
         return schemaError("QUERY_DATA_REQUIRED", "CREATE requires at least one field.");
     }
 
+    SchemaError? nestedWriteError = validateNoNestedWritePayload(payload);
+    if nestedWriteError is SchemaError {
+        return nestedWriteError;
+    }
+
     string[] columnParts = [];
     string[] valueParts = [];
 
@@ -168,6 +194,11 @@ function buildInsertManySql(string tableName, map<anydata>[] payloadList, Engine
         return schemaError("QUERY_DATA_REQUIRED", "CREATE_MANY rows must include at least one field.");
     }
 
+    SchemaError? nestedWriteError = validateNoNestedWritePayload(firstRow);
+    if nestedWriteError is SchemaError {
+        return nestedWriteError;
+    }
+
     string[] fields = [];
     foreach var [fieldName, _] in firstRow.entries() {
         fields.push(fieldName);
@@ -180,6 +211,11 @@ function buildInsertManySql(string tableName, map<anydata>[] payloadList, Engine
 
     string[] rowGroups = [];
     foreach map<anydata> row in payloadList {
+        SchemaError? rowNestedWriteError = validateNoNestedWritePayload(row);
+        if rowNestedWriteError is SchemaError {
+            return rowNestedWriteError;
+        }
+
         string[] rowPlaceholders = [];
         foreach string fieldName in fields {
             anydata? value = row.get(fieldName);
@@ -205,6 +241,11 @@ function buildUpdateSql(QueryPlan plan, string tableName, map<anydata> payload, 
         return schemaError("QUERY_DATA_REQUIRED", "UPDATE requires at least one field.", plan.model);
     }
 
+    SchemaError? nestedWriteError = validateNoNestedWritePayload(payload);
+    if nestedWriteError is SchemaError {
+        return nestedWriteError;
+    }
+
     string[] setParts = [];
     foreach var [fieldName, value] in payload.entries() {
         string columnName = quoteIdentifier(engine, toSnakeCase(fieldName));
@@ -212,39 +253,68 @@ function buildUpdateSql(QueryPlan plan, string tableName, map<anydata> payload, 
         setParts.push(string `${columnName} = ${placeholder}`);
     }
 
-    string sqlText = string `UPDATE ${quoteIdentifier(engine, tableName)} SET ${joinWithSeparator(setParts, ", ")}`;
+    string tableSql = quoteIdentifier(engine, tableName);
+    string setSql = joinWithSeparator(setParts, ", ");
+    string baseSql = string `UPDATE ${tableSql} SET ${setSql}`;
 
+    string whereSql = "";
     WhereInput? whereInput = plan.'where;
     if whereInput is WhereInput {
-        string whereSql = check buildWhereExpression(whereInput, engine, state);
-        if whereSql != "" {
-            sqlText = string `${sqlText} WHERE ${whereSql}`;
-        }
+        whereSql = check buildWhereExpression(whereInput, engine, state);
     }
 
     if plan.operation == UPDATE {
-        sqlText = string `${sqlText} LIMIT 1`;
+        if engine == POSTGRESQL {
+            string subquery = string `SELECT ctid FROM ${tableSql}`;
+            if whereSql != "" {
+                subquery = string `${subquery} WHERE ${whereSql}`;
+            }
+            subquery = string `${subquery} LIMIT 1`;
+            return string `${baseSql} WHERE ctid IN (${subquery})`;
+        }
+
+        if whereSql != "" {
+            return string `${baseSql} WHERE ${whereSql} LIMIT 1`;
+        }
+        return string `${baseSql} LIMIT 1`;
     }
 
-    return sqlText;
+    if whereSql != "" {
+        return string `${baseSql} WHERE ${whereSql}`;
+    }
+    return baseSql;
 }
 
 function buildDeleteSql(QueryPlan plan, string tableName, Engine engine, SqlBuildState state) returns string|SchemaError {
-    string sqlText = string `DELETE FROM ${quoteIdentifier(engine, tableName)}`;
+    string tableSql = quoteIdentifier(engine, tableName);
+    string baseSql = string `DELETE FROM ${tableSql}`;
 
+    string whereSql = "";
     WhereInput? whereInput = plan.'where;
     if whereInput is WhereInput {
-        string whereSql = check buildWhereExpression(whereInput, engine, state);
-        if whereSql != "" {
-            sqlText = string `${sqlText} WHERE ${whereSql}`;
-        }
+        whereSql = check buildWhereExpression(whereInput, engine, state);
     }
 
     if plan.operation == DELETE {
-        sqlText = string `${sqlText} LIMIT 1`;
+        if engine == POSTGRESQL {
+            string subquery = string `SELECT ctid FROM ${tableSql}`;
+            if whereSql != "" {
+                subquery = string `${subquery} WHERE ${whereSql}`;
+            }
+            subquery = string `${subquery} LIMIT 1`;
+            return string `${baseSql} WHERE ctid IN (${subquery})`;
+        }
+
+        if whereSql != "" {
+            return string `${baseSql} WHERE ${whereSql} LIMIT 1`;
+        }
+        return string `${baseSql} LIMIT 1`;
     }
 
-    return sqlText;
+    if whereSql != "" {
+        return string `${baseSql} WHERE ${whereSql}`;
+    }
+    return baseSql;
 }
 
 function buildCountSql(QueryPlan plan, string tableName, Engine engine, SqlBuildState state) returns string|SchemaError {
@@ -514,10 +584,11 @@ function buildOperatorCondition(string column, string operator, anydata value, E
             return schemaError("QUERY_OPERATOR_VALUE_INVALID", string `'${operator}' expects a string.`);
         }
 
-        string pattern = operator == "contains" ? string `%${value}%` :
-            operator == "startsWith" ? string `${value}%` : string `%${value}`;
+        string escapedValue = escapeLikePattern(value);
+        string pattern = operator == "contains" ? string `%${escapedValue}%` :
+            operator == "startsWith" ? string `${escapedValue}%` : string `%${escapedValue}`;
         string placeholder = addParam(engine, state, pattern);
-        return string `${column} LIKE ${placeholder}`;
+        return string `${column} LIKE ${placeholder} ESCAPE '\\'`;
     }
 
     if operator == "isNull" {
@@ -539,6 +610,130 @@ function addParam(Engine engine, SqlBuildState state, anydata value) returns str
 
 function quoteIdentifier(Engine engine, string identifier) returns string {
     return engine == POSTGRESQL ? postgresqlQuoteIdentifier(identifier) : mysqlQuoteIdentifier(identifier);
+}
+
+function buildUpsertSql(QueryPlan plan, string tableName, UpsertInput upsertInput, Engine engine, SqlBuildState state)
+    returns string|SchemaError {
+    map<anydata> createPayload = upsertInput.create;
+    map<anydata> updatePayload = upsertInput.update;
+
+    if createPayload.length() == 0 {
+        return schemaError("QUERY_DATA_REQUIRED", "UPSERT create payload must include at least one field.", plan.model);
+    }
+    if updatePayload.length() == 0 {
+        return schemaError("QUERY_DATA_REQUIRED", "UPSERT update payload must include at least one field.", plan.model);
+    }
+
+    SchemaError? createNestedWriteError = validateNoNestedWritePayload(createPayload);
+    if createNestedWriteError is SchemaError {
+        return createNestedWriteError;
+    }
+    SchemaError? updateNestedWriteError = validateNoNestedWritePayload(updatePayload);
+    if updateNestedWriteError is SchemaError {
+        return updateNestedWriteError;
+    }
+
+    string insertSql = check buildInsertSql(tableName, createPayload, engine, state);
+
+    string[] updateAssignments = [];
+    foreach var [fieldName, value] in updatePayload.entries() {
+        string columnName = quoteIdentifier(engine, toSnakeCase(fieldName));
+        string placeholder = addParam(engine, state, value);
+        updateAssignments.push(string `${columnName} = ${placeholder}`);
+    }
+
+    string updateSql = joinWithSeparator(updateAssignments, ", ");
+    if engine == MYSQL {
+        return string `${insertSql} ON DUPLICATE KEY UPDATE ${updateSql}`;
+    }
+
+    string[] conflictColumns = check inferPostgresqlConflictColumns(plan.'where, plan.model);
+    string[] quotedConflictColumns = [];
+    foreach string conflictColumn in conflictColumns {
+        quotedConflictColumns.push(quoteIdentifier(engine, toSnakeCase(conflictColumn)));
+    }
+
+    string conflictTargetSql = joinWithSeparator(quotedConflictColumns, ", ");
+    return string `${insertSql} ON CONFLICT (${conflictTargetSql}) DO UPDATE SET ${updateSql}`;
+}
+
+function inferPostgresqlConflictColumns(WhereInput? whereInput, string modelName) returns string[]|SchemaError {
+    if whereInput is () {
+        return schemaError(
+            "QUERY_UPSERT_CONFLICT_REQUIRED",
+            "PostgreSQL UPSERT requires a where filter with equality fields to infer ON CONFLICT columns.",
+            modelName
+        );
+    }
+
+    string[] conflictColumns = [];
+    foreach var [fieldName, whereValue] in whereInput.entries() {
+        if isLogicalWhereOperator(fieldName) {
+            return schemaError(
+                "QUERY_UPSERT_CONFLICT_INVALID",
+                "PostgreSQL UPSERT conflict fields cannot use AND/OR/NOT operators.",
+                modelName
+            );
+        }
+
+        if whereValue is map<anydata> {
+            if !whereValue.hasKey("equals") {
+                return schemaError(
+                    "QUERY_UPSERT_CONFLICT_INVALID",
+                    string `PostgreSQL UPSERT conflict field '${fieldName}' must use equals.`,
+                    modelName,
+                    fieldName
+                );
+            }
+        }
+
+        conflictColumns.push(fieldName);
+    }
+
+    if conflictColumns.length() == 0 {
+        return schemaError(
+            "QUERY_UPSERT_CONFLICT_REQUIRED",
+            "PostgreSQL UPSERT requires at least one equality field in where filter.",
+            modelName
+        );
+    }
+
+    return conflictColumns;
+}
+
+function escapeLikePattern(string value) returns string {
+    string escaped = "";
+    int index = 0;
+    while index < value.length() {
+        string current = value.substring(index, index + 1);
+        if current == "\\" || current == "%" || current == "_" {
+            escaped = escaped + "\\" + current;
+        } else {
+            escaped = string `${escaped}${current}`;
+        }
+        index += 1;
+    }
+    return escaped;
+}
+
+function validateNoNestedWritePayload(map<anydata> payload) returns SchemaError? {
+    foreach var [_, value] in payload.entries() {
+        if value is map<anydata> {
+            if isNestedWriteDirective(value) {
+                return schemaError(
+                    "QUERY_NESTED_WRITE_UNSUPPORTED",
+                    "Nested writes are not implemented yet. Execute parent and child writes separately."
+                );
+            }
+        }
+    }
+    return;
+}
+
+function isNestedWriteDirective(map<anydata> payload) returns boolean {
+    return payload.hasKey("create") || payload.hasKey("createMany") || payload.hasKey("update") ||
+        payload.hasKey("upsert") || payload.hasKey("delete") || payload.hasKey("deleteMany") ||
+        payload.hasKey("connect") || payload.hasKey("disconnect") || payload.hasKey("set");
 }
 
 function joinWithSeparator(string[] values, string separator) returns string {
