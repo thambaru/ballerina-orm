@@ -2,7 +2,8 @@ import ballerina/file;
 import ballerina/io;
 import ballerina/time;
 
-# Initializes a new ORM project structure by creating the migrations directory.
+# Initializes a new ORM project structure by creating the migrations directory
+# and writing an `.ormrc.json` config template if one does not already exist.
 public function initProject(string projectDir) returns MigrationError? {
     string migrationsDir = projectDir + "/migrations";
     file:Error? result = file:createDir(migrationsDir, file:RECURSIVE);
@@ -21,6 +22,26 @@ public function initProject(string projectDir) returns MigrationError? {
             return error MigrationError("INIT_FAILED", code = "INIT_FAILED", message = "Failed to create migration lock: " + writeErr.message());
         }
     }
+
+    // Write .ormrc.json template if it does not exist yet
+    string ormrcPath = projectDir + "/.ormrc.json";
+    string|io:Error ormrcExisting = io:fileReadString(ormrcPath);
+    if ormrcExisting is io:Error {
+        string template = "{\n" +
+            "  \"provider\": \"MYSQL\",\n" +
+            "  \"host\":     \"localhost\",\n" +
+            "  \"port\":     3306,\n" +
+            "  \"user\":     \"root\",\n" +
+            "  \"password\": \"\",\n" +
+            "  \"database\": \"myapp\"\n" +
+            "}\n";
+        io:Error? writeErr = io:fileWriteString(ormrcPath, template);
+        if writeErr is io:Error {
+            return error MigrationError("INIT_FAILED", code = "INIT_FAILED", message = "Failed to create .ormrc.json: " + writeErr.message());
+        }
+        io:println("Created .ormrc.json — fill in your database credentials.");
+    }
+
     io:println("Initialized ORM project.");
     return ();
 }

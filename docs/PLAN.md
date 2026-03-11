@@ -40,7 +40,7 @@ public type User record {|
 
 **Step 1.2: Schema IR** — Parse annotations into an intermediate representation (`ModelDefinition`, `ColumnDefinition`, `RelationDefinition`, `SchemaGraph`) for use by the query builder and migration engine.
 
-**Files:** `modules/orm/annotations.bal`, `modules/orm/schema/model.bal`, `modules/orm/schema/parser.bal`, `modules/orm/schema/validator.bal`
+**Files:** `modules/orm/annotations.bal`, `modules/orm/schema_model.bal`, `modules/orm/schema_parser.bal`, `modules/orm/schema_validator.bal`
 
 ---
 
@@ -66,7 +66,7 @@ Methods: `findMany`, `findUnique`, `findFirst`, `create`, `createMany`, `update`
 
 **Step 2.5: Dialect-aware SQL generation** — Query AST → SQL string with MySQL and PostgreSQL dialect modules.
 
-**Files:** `modules/orm/query/builder.bal`, `filter.bal`, `select.bal`, `include.bal`, `sql_generator.bal`, `modules/orm/dialects/mysql.bal`, `postgresql.bal`
+**Files:** `modules/orm/query_builder.bal`, `modules/orm/query_filter.bal`, `modules/orm/query_select.bal`, `modules/orm/query_include.bal`, `modules/orm/query_sql_generator.bal`, `modules/orm/dialect_mysql.bal`, `modules/orm/dialect_postgresql.bal`
 
 ---
 
@@ -86,7 +86,7 @@ orm:Client ormClient = check new ({
 
 **Step 3.3: Connection pooling** — Delegate to underlying driver pool configs.
 
-**Files:** `modules/orm/client.bal`, `modules/orm/types.bal`, `modules/orm/connection/pool.bal`, `connection/url_parser.bal`
+**Files:** `modules/orm/client.bal`, `modules/orm/types.bal`, `modules/orm/connection_pool.bal`, `modules/orm/connection_url_parser.bal`
 
 ---
 
@@ -102,7 +102,7 @@ orm:Client ormClient = check new ({
 
 **Step 4.3: Compile-time validation** — Verify relation FK existence/type matching, column type compatibility, warn on missing FK indexes.
 
-**Files:** `modules/orm-compiler-plugin/plugin.bal`, `analyzer.bal`, `generator.bal`, `type_mapper.bal`
+**Files:** `modules/orm/plugin.bal`, `modules/orm/analyzer.bal`, `modules/orm/generator.bal`, `modules/orm/type_mapper.bal` (Ballerina-side scaffolding); Java plugin in `compiler-plugin/src/main/java/io/ballerina/orm/plugin/`
 
 ---
 
@@ -133,7 +133,7 @@ Tracking via `_orm_migrations` table in the target DB.
 | `bal orm db pull` | Introspect DB → generate record types |
 | `bal orm generate` | Trigger client code generation |
 
-**Files:** `modules/orm-cli/main.bal`, `commands/*.bal`, `introspect/mysql.bal`, `introspect/postgresql.bal`, `diff/schema_diff.bal`, `diff/sql_generator.bal`
+**Files:** `modules/orm_cli/main.bal`, `modules/orm_cli/commands.bal`, `modules/orm_cli/migrate.bal`, `modules/orm_cli/mysql.bal`, `modules/orm_cli/postgresql.bal`, `modules/orm_cli/schema_diff.bal`, `modules/orm_cli/sql_generator.bal`
 
 ---
 
