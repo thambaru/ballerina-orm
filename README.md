@@ -1,13 +1,12 @@
 # Ballerina ORM
 
-A Prisma-inspired, type-safe ORM for Ballerina with full relation support, migration tooling, and MySQL + PostgreSQL backends.
+A Prisma-inspired, type-safe ORM for Ballerina with full relation support and MySQL + PostgreSQL backends.
 
 ## Features
 
 - 🎯 **Type-safe query builder** — Prisma-style fluent API with compile-time safety
 - 🔗 **Full relation support** — ONE_TO_ONE, ONE_TO_MANY, MANY_TO_MANY with eager loading
 - 📝 **Schema definition via annotations** — Annotated record types as source of truth
-- 🔄 **Database migrations** — Automatic schema diffing and SQL generation
 - 🗄️ **Multi-database** — MySQL and PostgreSQL support
 - 🔒 **Transaction support** — Built on Ballerina's native transaction system
 - ⚡ **Connection pooling** — Efficient connection management
@@ -22,7 +21,6 @@ Add to your `Ballerina.toml`:
 ```toml
 [dependencies]
 ballerinax.orm = "0.1.0"
-ballerinax.orm-cli = "0.1.0"
 ```
 
 Or use Ballerina CLI:
@@ -305,57 +303,6 @@ int affectedRows = check db.rawExecute(
 );
 ```
 
-## Migrations
-
-### Initialize Migration System
-
-```bash
-bal orm init
-```
-
-Creates `migrations/` directory and `orm.config.toml`:
-
-```toml
-[database]
-provider = "mysql"
-url = "mysql://root:password@localhost:3306/myapp"
-```
-
-### Generate Migrations
-
-```bash
-# Generate migration from schema changes
-bal orm migrate dev --name add_posts
-
-# Review the generated SQL in migrations/20260309120000_add_posts/migration.sql
-```
-
-### Apply Migrations
-
-```bash
-# Development: generate + apply
-bal orm migrate dev
-
-# Production: apply pending migrations
-bal orm migrate deploy
-
-# Check status
-bal orm migrate status
-```
-
-### Other Migration Commands
-
-```bash
-# Reset database (dev only)
-bal orm migrate reset
-
-# Push schema without migration file (dev only)
-bal orm db push
-
-# Pull schema from existing database
-bal orm db pull
-```
-
 ## Database Support
 
 ### MySQL
@@ -416,20 +363,17 @@ bal test --groups unit
 
 See the `examples/` directory for complete examples:
 
-- `examples/bal_orm_cli.bal` — Full CLI application example
-- `examples/migration_demo.bal` — Migration workflow demonstration
+- `examples/complete_blog_example.bal` — End-to-end ORM usage with entities and relations
 
 ## Documentation
 
 - [API Reference](docs/API_REFERENCE.md) — Complete API documentation
-- [Migration Guide](docs/MIGRATION_GUIDE.md) — Detailed migration workflow
 - [Compiler Plugin](docs/COMPILER_PLUGIN.md) — Plugin architecture and code generation
 
 ## Architecture
 
 1. **Core Library** (`modules/orm/`) — Annotations, query builder, relation resolution, connection management
 2. **Compiler Plugin** (`compiler-plugin/`) — Compile-time validation and code generation
-3. **CLI Tool** (`modules/orm-cli/`) — Migration engine and schema management
 
 ## Contributing
 

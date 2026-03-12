@@ -907,5 +907,4 @@ public type TransactionError distinct Error;
 
 ## Next Steps
 
-- [Migration Guide](MIGRATION_GUIDE.md) — Learn about database migrations
 - [Examples](../examples/) — See complete code examples
