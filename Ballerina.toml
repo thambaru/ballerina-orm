@@ -3,3 +3,4 @@ org = "thambaru"
 name = "bal_orm"
 version = "0.1.0"
 distribution = "2201.13.1"
+export = ["bal_orm", "bal_orm.orm", "bal_orm.orm_cli"]

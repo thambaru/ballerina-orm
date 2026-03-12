@@ -588,6 +588,11 @@ function buildOperatorCondition(string column, string operator, anydata value, E
         string pattern = operator == "contains" ? string `%${escapedValue}%` :
             operator == "startsWith" ? string `${escapedValue}%` : string `%${escapedValue}`;
         string placeholder = addParam(engine, state, pattern);
+        if engine == POSTGRESQL {
+            // PostgreSQL treats backslash as default escape; explicit ESCAPE '\' can be
+            // misinterpreted as a two-character string, leading to syntax errors.
+            return string `${column} LIKE ${placeholder}`;
+        }
         return string `${column} LIKE ${placeholder} ESCAPE '\\'`;
     }
 

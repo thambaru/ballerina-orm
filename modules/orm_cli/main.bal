@@ -129,19 +129,19 @@ function readOrmConfig(string projectDir) returns CliRcConfig|error {
 function openDbClient(CliRcConfig cfg) returns CliDbClient|error {
     if cfg.provider.toUpperAscii() == "POSTGRESQL" {
         return check new postgresql:Client(
-            cfg.host,
-            cfg.user,
-            cfg.password,
-            cfg.database,
-            cfg.port
+            host = cfg.host,
+            username = cfg.user,
+            password = cfg.password,
+            database = cfg.database,
+            port = cfg.port
         );
     }
     return check new mysql:Client(
-        cfg.host,
-        cfg.user,
-        cfg.password,
-        cfg.database,
-        cfg.port
+        host = cfg.host,
+        user = cfg.user,
+        password = cfg.password,
+        database = cfg.database,
+        port = cfg.port
     );
 }
 

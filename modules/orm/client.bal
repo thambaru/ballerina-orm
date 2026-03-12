@@ -21,13 +21,13 @@ public class Client {
 
         if normalized.provider == MYSQL {
             mysql:Client|error dbClient = new (
-                normalized.host,
-                normalized.user,
-                normalized.password,
-                normalized.database,
-                normalized.port,
-                normalized.mysqlOptions,
-                normalized.connectionPool
+                host = normalized.host,
+                user = normalized.user,
+                password = normalized.password,
+                database = normalized.database,
+                port = normalized.port,
+                options = normalized.mysqlOptions,
+                connectionPool = normalized.connectionPool
             );
             if dbClient is error {
                 return dbClient;
@@ -37,13 +37,13 @@ public class Client {
         }
 
         postgresql:Client|error dbClient = new (
-            normalized.host,
-            normalized.user,
-            normalized.password,
-            normalized.database,
-            normalized.port,
-            normalized.postgresqlOptions,
-            normalized.connectionPool
+            host = normalized.host,
+            username = normalized.user,
+            password = normalized.password,
+            database = normalized.database,
+            port = normalized.port,
+            options = normalized.postgresqlOptions,
+            connectionPool = normalized.connectionPool
         );
         if dbClient is error {
             return dbClient;
@@ -123,6 +123,22 @@ public class Client {
 
         postgresql:Client dbClient = <postgresql:Client>self.nativeClient;
         return dbClient->execute(parameterizedQuery);
+    }
+
+    # Create an executing query builder bound to this client for the given model type.
+    #
+    # Terminal methods on the returned builder execute immediately — no separate run step required.
+    #
+    # Example:
+    # ```ballerina
+    # record {}[] users = check db.model(User)
+    #     .'where({email: {contains: "@example.com"}})
+    #     .orderBy({id: orm:DESC})
+    #     .take(10)
+    #     .findMany();
+    # ```
+    public function model(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
+        return new (self, extractModelName(modelType));
     }
 
     # Close the underlying database client.
@@ -239,9 +255,18 @@ function toSqlValue(anydata value, int index) returns sql:Value|ClientError {
 }
 
 function redactedConfig(NormalizedClientConfig config) returns NormalizedClientConfig {
-    NormalizedClientConfig safe = config;
-    safe.password = ();
-    return safe;
+    return {
+        provider: config.provider,
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        password: (),
+        database: config.database,
+        mysqlOptions: config.mysqlOptions,
+        postgresqlOptions: config.postgresqlOptions,
+        connectionPool: config.connectionPool,
+        query: config.query
+    };
 }
 
 function isReadOperation(QueryOperation operation) returns boolean {
