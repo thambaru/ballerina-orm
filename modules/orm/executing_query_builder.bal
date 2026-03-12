@@ -136,6 +136,16 @@ public class ExecutingQueryBuilder {
         return self.dbClient.execute(self.plan);
     }
 
+    # Execute an upsert query (insert if not exists, otherwise update).
+    public transactional function upsert(map<anydata> createData, map<anydata> updateData) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
+        self.plan.operation = UPSERT;
+        self.plan.upsert = {
+            create: createData,
+            update: updateData
+        };
+        return self.dbClient.execute(self.plan);
+    }
+
     # Execute a delete query.
     public transactional function delete() returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
         self.plan.operation = DELETE;
