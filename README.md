@@ -20,13 +20,13 @@ Add to your `Ballerina.toml`:
 
 ```toml
 [dependencies]
-ballerinax.orm = "0.1.0"
+thambaru.bal_orm = "0.1.0"
 ```
 
 Or use Ballerina CLI:
 
 ```bash
-bal add ballerinax:orm
+bal add thambaru:bal_orm
 ```
 
 ### Define Your Schema
