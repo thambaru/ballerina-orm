@@ -132,7 +132,7 @@ public function parseModel(RawModel rawModel, Engine? defaultEngine = ()) return
             fieldName: rawField.name,
             columnName,
             ballerinaType: rawField.ballerinaType,
-            dbType: columnConfig.dbType,
+            dbType: columnConfig.'type,
             length: columnConfig.length,
             nullable,
             unique: columnConfig.unique,

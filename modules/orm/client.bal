@@ -64,7 +64,7 @@ public class Client {
     # Convert a query plan to SQL and execute it as a read query.
     #
     # Use this for `findMany`, `findFirst`, `findUnique`, `count`, and `aggregate` operations.
-    public transactional function query(QueryPlan plan) returns stream<record {}, sql:Error?>|SchemaError|ClientError|sql:Error {
+    public function query(QueryPlan plan) returns stream<record {}, sql:Error?>|SchemaError|ClientError|sql:Error {
         if !isReadOperation(plan.operation) {
             return clientError(
                 "CLIENT_QUERY_OPERATION_INVALID",
@@ -80,7 +80,7 @@ public class Client {
     # Convert a query plan to SQL and execute it as a write query.
     #
     # Use this for `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, and `deleteMany` operations.
-    public transactional function execute(QueryPlan plan) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
+    public function execute(QueryPlan plan) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
         if !isWriteOperation(plan.operation) {
             return clientError(
                 "CLIENT_EXECUTE_OPERATION_INVALID",
@@ -94,15 +94,21 @@ public class Client {
     }
 
     # Execute raw SQL query text with positional parameters.
-    public transactional function rawQuery(string text, anydata... params) returns stream<record {}, sql:Error?>|ClientError|sql:Error {
+    # Returns a generic record stream. Use `cloneWithType()` on collected rows for typed access.
+    public function rawQuery(string text, anydata[] params = []) returns stream<record {}, sql:Error?>|ClientError|sql:Error {
         sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
         return self.rawQueryParameterized(parameterizedQuery);
     }
 
     # Execute raw SQL statement text with positional parameters.
-    public transactional function rawExecute(string text, anydata... params) returns sql:ExecutionResult|ClientError|sql:Error {
+    # Returns the number of affected rows.
+    public function rawExecute(string text, anydata[] params = []) returns int|ClientError|sql:Error {
         sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
-        return self.rawExecuteParameterized(parameterizedQuery);
+        sql:ExecutionResult|sql:Error execResult = self.rawExecuteParameterized(parameterizedQuery);
+        if execResult is sql:Error {
+            return execResult;
+        }
+        return execResult.affectedRowCount ?: 0;
     }
 
     function rawQueryParameterized(sql:ParameterizedQuery parameterizedQuery) returns stream<record {}, sql:Error?>|sql:Error {
@@ -128,16 +134,20 @@ public class Client {
     # Create an executing query builder bound to this client for the given model type.
     #
     # Terminal methods on the returned builder execute immediately — no separate run step required.
+    public function model(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
+        return new (self, extractModelName(modelType));
+    }
+
+    # Primary Prisma-like fluent API entry point. Returns a typed executing query builder.
     #
     # Example:
     # ```ballerina
-    # record {}[] users = check db.model(User)
-    #     .'where({email: {contains: "@example.com"}})
+    # User[] users = check db.'from(User)
+    #     .'where({status: {equals: "ACTIVE"}})
     #     .orderBy({id: orm:DESC})
-    #     .take(10)
     #     .findMany();
     # ```
-    public function model(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
+    public function 'from(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
         return new (self, extractModelName(modelType));
     }
 

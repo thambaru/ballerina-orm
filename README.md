@@ -112,13 +112,13 @@ public function main() returns error? {
 
 ```ballerina
 // Create a single record
-User newUser = check orm:'from(User).create({
+User newUser = check db.'from(User).create({
     email: "alice@example.com",
     name: "Alice"
 });
 
 // Create multiple records
-User[] users = check orm:'from(User).createMany([
+User[] users = check db.'from(User).createMany([
     {email: "bob@example.com", name: "Bob"},
     {email: "charlie@example.com", name: "Charlie"}
 ]);
@@ -128,17 +128,17 @@ User[] users = check orm:'from(User).createMany([
 
 ```ballerina
 // Find by unique identifier
-User? user = check orm:'from(User)
+User? user = check db.'from(User)
     .'where({email: {equals: "alice@example.com"}})
     .findUnique();
 
 // Find first matching record
-User? firstAdmin = check orm:'from(User)
+User? firstAdmin = check db.'from(User)
     .'where({role: {equals: "ADMIN"}})
     .findFirst();
 
 // Find many with filters
-User[] activeUsers = check orm:'from(User)
+User[] activeUsers = check db.'from(User)
     .'where({
         status: {equals: "ACTIVE"},
         email: {contains: "@example.com"}
@@ -153,33 +153,32 @@ User[] activeUsers = check orm:'from(User)
 
 ```ballerina
 // Update one
-User updated = check orm:'from(User)
+User updated = check db.'from(User)
     .'where({id: {equals: 1}})
     .update({name: "Alice Smith"});
 
 // Update many
-int count = check orm:'from(User)
+int count = check db.'from(User)
     .'where({status: {equals: "PENDING"}})
     .updateMany({status: "ACTIVE"});
 
 // Upsert (create or update)
-User user = check orm:'from(User).upsert({
-    'where: {email: "alice@example.com"},
-    create: {email: "alice@example.com", name: "Alice"},
-    update: {name: "Alice Updated"}
-});
+User user = check db.'from(User).upsert(
+    {email: "alice@example.com", name: "Alice"},
+    {name: "Alice Updated"}
+);
 ```
 
 #### Delete
 
 ```ballerina
 // Delete one
-User deleted = check orm:'from(User)
+User deleted = check db.'from(User)
     .'where({id: {equals: 1}})
     .delete();
 
 // Delete many
-int count = check orm:'from(User)
+int count = check db.'from(User)
     .'where({status: {equals: "INACTIVE"}})
     .deleteMany();
 ```
@@ -189,7 +188,7 @@ int count = check orm:'from(User)
 #### Filter Operators
 
 ```ballerina
-User[] users = check orm:'from(User)
+User[] users = check db.'from(User)
     .'where({
         // Comparison
         age: {gte: 18, lte: 65},
@@ -218,7 +217,7 @@ User[] users = check orm:'from(User)
 
 ```ballerina
 // Include related records (ONE_TO_MANY)
-User? user = check orm:'from(User)
+User? user = check db.'from(User)
     .include({posts: true})
     .'where({id: {equals: 1}})
     .findUnique();
@@ -228,7 +227,7 @@ if user is User && user.posts is Post[] {
 }
 
 // Include nested relations
-Post? post = check orm:'from(Post)
+Post? post = check db.'from(Post)
     .include({
         author: true,
         categories: true
@@ -237,7 +236,7 @@ Post? post = check orm:'from(Post)
     .findUnique();
 
 // Select specific fields
-var userEmails = check orm:'from(User)
+var userEmails = check db.'from(User)
     .select({id: true, email: true})
     .findMany();
 ```
@@ -246,12 +245,12 @@ var userEmails = check orm:'from(User)
 
 ```ballerina
 // Count
-int userCount = check orm:'from(User)
+int userCount = check db.'from(User)
     .'where({status: {equals: "ACTIVE"}})
     .count();
 
 // Aggregations
-var stats = check orm:'from(Order)
+var stats = check db.'from(Order)
     .'where({status: {equals: "COMPLETED"}})
     .aggregate({
         sum: ["total"],
@@ -268,12 +267,12 @@ io:println(`Average order: ${stats.avg_total}`);
 
 ```ballerina
 transaction {
-    User user = check orm:'from(User).create({
+    User user = check db.'from(User).create({
         email: "newuser@example.com",
         name: "New User"
     });
     
-    Post post = check orm:'from(Post).create({
+    Post post = check db.'from(Post).create({
         title: "First Post",
         content: "Hello World",
         authorId: user.id
@@ -288,18 +287,18 @@ transaction {
 For complex queries, use raw SQL:
 
 ```ballerina
-// Raw query with streaming results
+// Raw query with streaming results (rowType inferred from assignment context)
 stream<User, error?> userStream = check db.rawQuery(
     "SELECT * FROM users WHERE created_at > ? ORDER BY email",
-    "2026-01-01"
+    ["2026-01-01"]
 );
 
 User[] users = check from User user in userStream select user;
 
-// Raw execution (INSERT, UPDATE, DELETE)
+// Raw execution (INSERT, UPDATE, DELETE) — returns affected row count
 int affectedRows = check db.rawExecute(
     "UPDATE users SET last_login = NOW() WHERE id = ?",
-    userId
+    [userId]
 );
 ```
 

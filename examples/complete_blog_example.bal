@@ -44,7 +44,7 @@ public type UserProfile record {|
     @orm:Column {nullable: false}
     int userId; // Foreign key to users.id
     
-    @orm:Column {type: "TEXT"}
+    @orm:Column {'type: "TEXT"}
     string? bio;
     
     @orm:Column {length: 255}
@@ -74,7 +74,7 @@ public type Post record {|
     @orm:Column {length: 1000}
     string? excerpt;
     
-    @orm:Column {type: "TEXT", nullable: false}
+    @orm:Column {'type: "TEXT", nullable: false}
     string content;
     
     @orm:Column {length: 20}
@@ -121,7 +121,7 @@ public type Category record {|
     @orm:Column {length: 150, unique: true, nullable: false}
     string slug;
     
-    @orm:Column {type: "TEXT"}
+    @orm:Column {'type: "TEXT"}
     string? description;
     
     @orm:CreatedAt
@@ -135,7 +135,7 @@ public type Comment record {|
     @orm:Id @orm:AutoIncrement
     int id;
     
-    @orm:Column {type: "TEXT", nullable: false}
+    @orm:Column {'type: "TEXT", nullable: false}
     string content;
     
     @orm:Column {nullable: false}
@@ -229,7 +229,7 @@ function example1_createUsers(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Create single user
-    User alice = check orm:'from(User).create({
+    User alice = check db.'from(User).create({
         email: "alice@example.com",
         name: "Alice Smith",
         status: "ACTIVE"
@@ -238,7 +238,7 @@ function example1_createUsers(orm:Client db) returns error? {
     io:println(`Created user: ${alice.name} (ID: ${alice.id})`);
     
     // Create multiple users
-    User[] users = check orm:'from(User).createMany([
+    User[] users = check db.'from(User).createMany([
         {email: "bob@example.com", name: "Bob Johnson", status: "ACTIVE"},
         {email: "charlie@example.com", name: "Charlie Brown", status: "ACTIVE"},
         {email: "diana@example.com", name: "Diana Prince", status: "INACTIVE"}
@@ -247,7 +247,7 @@ function example1_createUsers(orm:Client db) returns error? {
     io:println(`Created ${users.length()} more users`);
     
     // Create user profile
-    UserProfile profile = check orm:'from(UserProfile).create({
+    UserProfile profile = check db.'from(UserProfile).create({
         userId: alice.id,
         bio: "Software engineer passionate about distributed systems",
         website: "https://alice.dev",
@@ -263,7 +263,7 @@ function example2_createPosts(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Get a user to be the author
-    User? alice = check orm:'from(User)
+    User? alice = check db.'from(User)
         .'where({email: {equals: "alice@example.com"}})
         .findUnique();
     
@@ -272,7 +272,7 @@ function example2_createPosts(orm:Client db) returns error? {
     }
     
     // Create posts
-    Post post1 = check orm:'from(Post).create({
+    Post post1 = check db.'from(Post).create({
         title: "Getting Started with Ballerina ORM",
         excerpt: "Learn how to build type-safe database applications",
         content: "Ballerina ORM provides a Prisma-like experience for Ballerina developers...",
@@ -281,7 +281,7 @@ function example2_createPosts(orm:Client db) returns error? {
         publishedAt: time:utcNow()
     });
     
-    Post post2 = check orm:'from(Post).create({
+    Post post2 = check db.'from(Post).create({
         title: "Advanced Query Patterns",
         excerpt: "Master complex queries and relations",
         content: "In this post, we'll explore advanced patterns for querying databases...",
@@ -298,7 +298,7 @@ function example3_queryWithFilters(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Simple equality filter
-    User[] activeUsers = check orm:'from(User)
+    User[] activeUsers = check db.'from(User)
         .'where({status: {equals: "ACTIVE"}})
         .orderBy({email: orm:ASC})
         .findMany();
@@ -306,14 +306,14 @@ function example3_queryWithFilters(orm:Client db) returns error? {
     io:println(`Found ${activeUsers.length()} active users`);
     
     // String matching
-    User[] exampleUsers = check orm:'from(User)
+    User[] exampleUsers = check db.'from(User)
         .'where({email: {contains: "@example.com"}})
         .findMany();
     
     io:println(`Found ${exampleUsers.length()} users with @example.com emails`);
     
     // Logical operators
-    User[] filteredUsers = check orm:'from(User)
+    User[] filteredUsers = check db.'from(User)
         .'where({
             OR: [
                 {status: {equals: "ACTIVE"}},
@@ -325,7 +325,7 @@ function example3_queryWithFilters(orm:Client db) returns error? {
     io:println(`Found ${filteredUsers.length()} users matching complex filter`);
     
     // Published posts only
-    Post[] publishedPosts = check orm:'from(Post)
+    Post[] publishedPosts = check db.'from(Post)
         .'where({
             status: {equals: "PUBLISHED"},
             publishedAt: {isNull: false}
@@ -342,7 +342,7 @@ function example4_eagerLoadRelations(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Load user with posts
-    User? alice = check orm:'from(User)
+    User? alice = check db.'from(User)
         .include({posts: true, profile: true})
         .'where({email: {equals: "alice@example.com"}})
         .findUnique();
@@ -363,7 +363,7 @@ function example4_eagerLoadRelations(orm:Client db) returns error? {
     }
     
     // Load post with author and comments
-    Post? post = check orm:'from(Post)
+    Post? post = check db.'from(Post)
         .include({
             author: true,
             comments: true
@@ -390,13 +390,13 @@ function example5_pagination(orm:Client db) returns error? {
     int currentPage = 1;
     
     // Get total count
-    int totalUsers = check orm:'from(User).count();
+    int totalUsers = check db.'from(User).count();
     int totalPages = (totalUsers + pageSize - 1) / pageSize;
     
     io:println(`Total users: ${totalUsers}, Pages: ${totalPages}`);
     
     // Get page 1
-    User[] page1 = check orm:'from(User)
+    User[] page1 = check db.'from(User)
         .orderBy({id: orm:ASC})
         .skip(0)
         .take(pageSize)
@@ -408,7 +408,7 @@ function example5_pagination(orm:Client db) returns error? {
     }
     
     // Get page 2
-    User[] page2 = check orm:'from(User)
+    User[] page2 = check db.'from(User)
         .orderBy({id: orm:ASC})
         .skip(pageSize)
         .take(pageSize)
@@ -426,11 +426,11 @@ function example6_aggregations(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Count users by status
-    int activeCount = check orm:'from(User)
+    int activeCount = check db.'from(User)
         .'where({status: {equals: "ACTIVE"}})
         .count();
     
-    int inactiveCount = check orm:'from(User)
+    int inactiveCount = check db.'from(User)
         .'where({status: {equals: "INACTIVE"}})
         .count();
     
@@ -438,12 +438,12 @@ function example6_aggregations(orm:Client db) returns error? {
     io:println(`Inactive users: ${inactiveCount}`);
     
     // Count posts by author
-    User? alice = check orm:'from(User)
+    User? alice = check db.'from(User)
         .'where({email: {equals: "alice@example.com"}})
         .findUnique();
     
     if alice is User {
-        int postCount = check orm:'from(Post)
+        int postCount = check db.'from(Post)
             .'where({authorId: {equals: alice.id}})
             .count();
         
@@ -458,13 +458,13 @@ function example7_transactions(orm:Client db) returns error? {
     
     // Successful transaction
     transaction {
-        User newUser = check orm:'from(User).create({
+        User newUser = check db.'from(User).create({
             email: "transaction@example.com",
             name: "Transaction User",
             status: "ACTIVE"
         });
         
-        UserProfile newProfile = check orm:'from(UserProfile).create({
+        UserProfile newProfile = check db.'from(UserProfile).create({
             userId: newUser.id,
             bio: "Created within a transaction"
         });
@@ -476,7 +476,7 @@ function example7_transactions(orm:Client db) returns error? {
     
     // Transaction with rollback
     var result = trap transaction {
-        User tempUser = check orm:'from(User).create({
+        User tempUser = check db.'from(User).create({
             email: "rollback@example.com",
             name: "Rollback User",
             status: "ACTIVE"
@@ -494,7 +494,7 @@ function example7_transactions(orm:Client db) returns error? {
     }
     
     // Verify rollback
-    User? rolledBackUser = check orm:'from(User)
+    User? rolledBackUser = check db.'from(User)
         .'where({email: {equals: "rollback@example.com"}})
         .findUnique();
     
@@ -509,13 +509,13 @@ function example8_manyToManyRelations(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Create categories
-    Category tech = check orm:'from(Category).create({
+    Category tech = check db.'from(Category).create({
         name: "Technology",
         slug: "technology",
         description: "Tech-related posts"
     });
     
-    Category tutorial = check orm:'from(Category).create({
+    Category tutorial = check db.'from(Category).create({
         name: "Tutorial",
         slug: "tutorial",
         description: "Step-by-step guides"
@@ -524,7 +524,7 @@ function example8_manyToManyRelations(orm:Client db) returns error? {
     io:println(`Created categories: ${tech.name}, ${tutorial.name}`);
     
     // Get a post
-    Post? post = check orm:'from(Post)
+    Post? post = check db.'from(Post)
         .'where({status: {equals: "PUBLISHED"}})
         .findFirst();
     
@@ -532,13 +532,13 @@ function example8_manyToManyRelations(orm:Client db) returns error? {
         // Link post to categories (using raw SQL for join table)
         _ = check db.rawExecute(
             "INSERT INTO post_categories (post_id, category_id) VALUES (?, ?), (?, ?)",
-            post.id, tech.id, post.id, tutorial.id
+            [post.id, tech.id, post.id, tutorial.id]
         );
         
         io:println(`Linked post "${post.title}" to categories`);
         
         // Load post with categories
-        Post? postWithCategories = check orm:'from(Post)
+        Post? postWithCategories = check db.'from(Post)
             .include({categories: true})
             .'where({id: {equals: post.id}})
             .findUnique();
@@ -558,7 +558,7 @@ function example9_complexQueries(orm:Client db) returns error? {
     io:println("-".repeat(40));
     
     // Complex filter with nested conditions
-    Post[] posts = check orm:'from(Post)
+    Post[] posts = check db.'from(Post)
         .'where({
             AND: [
                 {
@@ -579,7 +579,7 @@ function example9_complexQueries(orm:Client db) returns error? {
     io:println(`Found ${posts.length()} posts matching complex criteria`);
     
     // Select specific fields
-    var userEmails = check orm:'from(User)
+    var userEmails = check db.'from(User)
         .select({id: true, email: true, name: true})
         .'where({status: {equals: "ACTIVE"}})
         .findMany();
@@ -587,7 +587,7 @@ function example9_complexQueries(orm:Client db) returns error? {
     io:println(`Retrieved ${userEmails.length()} user emails (projected)`);
     
     // Update multiple records
-    int updatedCount = check orm:'from(Post)
+    int updatedCount = check db.'from(Post)
         .'where({status: {equals: "DRAFT"}})
         .updateMany({status: "ARCHIVED"});
     

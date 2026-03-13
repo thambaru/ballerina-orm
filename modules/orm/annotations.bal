@@ -26,7 +26,7 @@ public type EntityConfig record {|
 # Column-level mapping settings.
 public type ColumnConfig record {|
     string name?;
-    string dbType?;
+    string 'type?;
     int length?;
     boolean nullable = true;
     boolean unique = false;
