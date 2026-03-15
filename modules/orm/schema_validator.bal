@@ -1,6 +1,9 @@
 # Validation functions for schema graph consistency checks.
 
 # Validate model-level and cross-model constraints.
+#
+# + graph - The parsed schema graph to validate.
+# + return - A SchemaError if a constraint violation is found, otherwise nil.
 public function validateSchemaGraph(SchemaGraph graph) returns SchemaError? {
     map<string> usedTables = {};
 

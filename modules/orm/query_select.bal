@@ -6,6 +6,9 @@
 public type SelectInput map<anydata>;
 
 # Extract top-level selected fields where the value is `true`.
+#
+# + input - Select projection map.
+# + return - List of field names whose value is `true`.
 public function selectedFields(SelectInput input) returns string[] {
     string[] fields = [];
     foreach var [fieldName, selector] in input.entries() {

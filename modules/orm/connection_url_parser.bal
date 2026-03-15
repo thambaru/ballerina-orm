@@ -1,4 +1,7 @@
 # Parse database connection URLs into normalized provider/host/credential values.
+#
+# + connectionUrl - Connection URL string (e.g. `mysql://user:pass@host:3306/db`).
+# + return - Parsed connection values, or a ClientError if the URL is invalid.
 public function parseConnectionUrl(string connectionUrl) returns ParsedConnectionUrl|ClientError {
     string trimmed = connectionUrl.trim();
     if trimmed == "" {

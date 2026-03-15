@@ -1,6 +1,9 @@
 # Parse normalized schema source values into ORM schema IR.
 
 # Parse a full schema graph and validate cross-model constraints.
+#
+# + rawSchema - Normalized schema source to parse.
+# + return - Fully parsed and validated schema graph, or a SchemaError.
 public function parseSchema(RawSchema rawSchema) returns SchemaGraph|SchemaError {
     map<ModelDefinition> models = {};
     RelationEdge[] relationEdges = [];
@@ -45,6 +48,10 @@ public function parseSchema(RawSchema rawSchema) returns SchemaGraph|SchemaError
 }
 
 # Parse a single raw model into a model definition.
+#
+# + rawModel - Normalized source definition for the model.
+# + defaultEngine - Fallback database engine if the model does not specify one.
+# + return - Parsed model definition, or a SchemaError.
 public function parseModel(RawModel rawModel, Engine? defaultEngine = ()) returns ModelDefinition|SchemaError {
     if rawModel.name.trim().length() == 0 {
         return schemaError("MODEL_NAME_REQUIRED", "Model name cannot be empty.");

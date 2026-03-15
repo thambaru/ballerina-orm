@@ -23,52 +23,72 @@ public class ExecutingQueryBuilder {
     }
 
     # Override table name for this query.
+    #
+    # + tableName - Custom table name to use instead of the model-derived default.
+    # + return - Updated builder with the custom table name applied.
     public function 'table(string tableName) returns ExecutingQueryBuilder {
         self.plan.tableName = tableName;
         return self;
     }
 
     # Add a where filter.
+    #
+    # + whereInput - Filter predicate map.
+    # + return - Updated builder with the where clause applied.
     public function 'where(WhereInput whereInput) returns ExecutingQueryBuilder {
         self.plan.'where = whereInput;
         return self;
     }
 
     # Add an order-by clause.
+    #
+    # + orderByInput - Field-to-direction map specifying sort order.
+    # + return - Updated builder with the order-by clause appended.
     public function orderBy(OrderByInput orderByInput) returns ExecutingQueryBuilder {
         self.plan.orderBy.push(orderByInput);
         return self;
     }
 
     # Set result offset.
+    #
+    # + value - Number of rows to skip.
+    # + return - Updated builder with the skip value set.
     public function skip(int value) returns ExecutingQueryBuilder {
         self.plan.skip = value;
         return self;
     }
 
     # Set result size limit.
+    #
+    # + value - Maximum number of rows to return.
+    # + return - Updated builder with the take value set.
     public function take(int value) returns ExecutingQueryBuilder {
         self.plan.take = value;
         return self;
     }
 
     # Add select projection.
+    #
+    # + selectInput - Field projection map.
+    # + return - Updated builder with the select projection applied.
     public function 'select(SelectInput selectInput) returns ExecutingQueryBuilder {
         self.plan.'select = selectInput;
         return self;
     }
 
     # Add relation include payload.
+    #
+    # + includeInput - Relation include map.
+    # + return - Updated builder with the include clause applied.
     public function include(IncludeInput includeInput) returns ExecutingQueryBuilder {
         self.plan.include = includeInput;
         return self;
     }
 
     # Execute the query and return all matching rows as a generic record array.
-    # Use `cloneWithType()` on the result to obtain a typed array:
-    # ```ballerina
-    # User[] users = check (check db.'from(User).findMany()).cloneWithType();
-    # ```
+    # Cast the result to your model type using a type descriptor.
+    #
+    # + return - Array of generic record rows, or an error.
     public function findMany() returns record {}[]|error {
         self.plan.operation = FIND_MANY;
         record {}[]|SchemaError|ClientError|sql:Error rows = executeReadPlan(self.dbClient, self.plan);
@@ -79,7 +99,9 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute the query and return the first matching row, or nil if none found.
-    # Use `cloneWithType()` on the result to obtain a typed value.
+    # Cast the result to your model type using a type descriptor.
+    #
+    # + return - The first matching generic record, nil if no match, or an error.
     public function findFirst() returns record {}?|error {
         self.plan.operation = FIND_FIRST;
         self.plan.take = 1;
@@ -91,7 +113,9 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute the query and return the unique matching row, or nil if none found.
-    # Use `cloneWithType()` on the result to obtain a typed value.
+    # Cast the result to your model type using a type descriptor.
+    #
+    # + return - The unique matching generic record, nil if no match, or an error.
     public function findUnique() returns record {}?|error {
         self.plan.operation = FIND_UNIQUE;
         self.plan.take = 1;
@@ -103,6 +127,8 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute a count query and return the row count.
+    #
+    # + return - Number of rows matching the current filter, or an error.
     public function count() returns int|error {
         self.plan.operation = COUNT;
         record {}[]|SchemaError|ClientError|sql:Error rows = executeReadPlan(self.dbClient, self.plan);
@@ -122,10 +148,10 @@ public class ExecutingQueryBuilder {
     #
     # Inserts the row then fetches the full record using the auto-generated primary key.
     # Assumes the primary key column is named `id`.
-    # Use `cloneWithType()` on the result to obtain a typed value:
-    # ```ballerina
-    # User alice = check (check db.'from(User).create({...})).cloneWithType();
-    # ```
+    # Cast the result to your model type using a type descriptor.
+    #
+    # + data - Field values to insert.
+    # + return - The newly inserted generic record, or an error.
     public function create(map<anydata> data) returns record {}|error {
         self.plan.operation = CREATE;
         self.plan.data = data;
@@ -160,6 +186,9 @@ public class ExecutingQueryBuilder {
     #
     # Inserts each row individually and fetches results via auto-generated primary keys.
     # Assumes the primary key column is named `id`.
+    #
+    # + dataList - List of field value maps to insert.
+    # + return - Array of newly inserted generic records, or an error.
     public function createMany(map<anydata>[] dataList) returns record {}[]|error {
         record {}[] results = [];
         string tableName = self.plan.tableName ?: toDefaultTableName(self.plan.model);
@@ -202,6 +231,9 @@ public class ExecutingQueryBuilder {
     # Execute an update query and return the updated row as a generic record.
     #
     # Updates the matching row (limited to one) then fetches back the updated record.
+    #
+    # + data - Field values to update.
+    # + return - The updated generic record, or an error.
     public function update(map<anydata> data) returns record {}|error {
         self.plan.operation = UPDATE;
         self.plan.data = data;
@@ -228,6 +260,9 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute an updateMany query and return the number of affected rows.
+    #
+    # + data - Field values to apply to all matching rows.
+    # + return - Number of updated rows, or an error.
     public function updateMany(map<anydata> data) returns int|error {
         self.plan.operation = UPDATE_MANY;
         self.plan.data = data;
@@ -239,6 +274,10 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute an upsert query (insert if not exists, otherwise update).
+    #
+    # + createData - Field values for the insert branch.
+    # + updateData - Field values for the update branch.
+    # + return - SQL execution result, or an error.
     public function upsert(map<anydata> createData, map<anydata> updateData) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
         self.plan.operation = UPSERT;
         self.plan.upsert = {
@@ -251,6 +290,8 @@ public class ExecutingQueryBuilder {
     # Execute a delete query, returning the deleted row as a generic record.
     #
     # Fetches the matching record before deletion, deletes it, then returns the fetched record.
+    #
+    # + return - The deleted generic record, or an error.
     public function delete() returns record {}|error {
         QueryPlan fetchPlan = {
             model: self.plan.model,
@@ -277,6 +318,8 @@ public class ExecutingQueryBuilder {
     }
 
     # Execute a deleteMany query and return the number of affected rows.
+    #
+    # + return - Number of deleted rows, or an error.
     public function deleteMany() returns int|error {
         self.plan.operation = DELETE_MANY;
         sql:ExecutionResult|SchemaError|ClientError|sql:Error execResult = self.dbClient.execute(self.plan);
@@ -288,6 +331,10 @@ public class ExecutingQueryBuilder {
 }
 
 # Shared helper: run a read QueryPlan and collect all rows.
+#
+# + dbClient - The ORM client to execute against.
+# + plan - Compiled read query plan.
+# + return - Array of result rows with snake_case keys converted to camelCase, or an error.
 function executeReadPlan(Client dbClient, QueryPlan plan)
         returns record {}[]|SchemaError|ClientError|sql:Error {
     stream<record {}, sql:Error?>|SchemaError|ClientError|sql:Error queryResult = dbClient.query(plan);
@@ -307,6 +354,11 @@ function executeReadPlan(Client dbClient, QueryPlan plan)
 
 # Fetch a single row by its auto-generated primary key (assumed column name: `id`).
 # Used internally after INSERT to return the full inserted record.
+#
+# + dbClient - The ORM client to query against.
+# + tableName - The table to query.
+# + rowId - The primary key value to look up.
+# + return - The matching record row, nil if not found, or an error.
 function fetchInsertedRow(Client dbClient, string tableName, string|int rowId) returns record {}?|error {
     anydata[] params = [rowId];
     string sql;
@@ -330,6 +382,9 @@ function fetchInsertedRow(Client dbClient, string tableName, string|int rowId) r
 }
 
 # For PostgreSQL: query the last inserted id using lastval().
+#
+# + dbClient - The ORM client connected to the PostgreSQL database.
+# + return - The last auto-generated integer ID, or an error.
 function postgresqlLastVal(Client dbClient) returns int|error {
     stream<record {}, sql:Error?>|ClientError|sql:Error result = dbClient.rawQuery("SELECT lastval() AS id");
     if result is error {
@@ -350,6 +405,9 @@ function postgresqlLastVal(Client dbClient) returns int|error {
 
 # Convert a database result row's snake_case keys to camelCase.
 # e.g. `created_at` → `createdAt`, `author_id` → `authorId`
+#
+# + row - Source record with snake_case column keys.
+# + return - New record with camelCase keys.
 function convertRowToCamel(record {} row) returns record {} {
     map<anydata> result = {};
     foreach var [key, value] in row.entries() {
@@ -360,6 +418,9 @@ function convertRowToCamel(record {} row) returns record {} {
 
 # Convert a snake_case string to camelCase.
 # e.g. `created_at` → `createdAt`, `user_id` → `userId`
+#
+# + s - snake_case input string.
+# + return - camelCase equivalent of the input string.
 function snakeToCamel(string s) returns string {
     string result = "";
     boolean nextUpper = false;

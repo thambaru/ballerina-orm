@@ -2,6 +2,9 @@ import ballerinax/mysql;
 import ballerinax/postgresql;
 
 # Normalize client config from explicit fields and/or connection URL.
+#
+# + config - Raw client configuration potentially containing a connection URL.
+# + return - Fully resolved and validated configuration, or a ClientError.
 public function normalizeClientConfig(ClientConfig config) returns NormalizedClientConfig|ClientError {
     ParsedConnectionUrl? parsedFromUrl = ();
     string? rawUrl = config.url;
@@ -73,6 +76,9 @@ public function normalizeClientConfig(ClientConfig config) returns NormalizedCli
 }
 
 # Resolve ORM pool config into the shared SQL connection pool type.
+#
+# + poolConfig - Optional pool configuration to resolve.
+# + return - The resolved pool config, or nil if none was provided.
 public function resolveConnectionPool(ConnectionPoolConfig? poolConfig = ()) returns ConnectionPoolConfig? {
     return poolConfig;
 }

@@ -1,6 +1,10 @@
 # Convert a query plan into dialect-aware SQL and parameter bindings.
 
 # Convert a query plan to SQL for the selected engine.
+#
+# + plan - Compiled query plan to convert.
+# + engine - Target database engine that determines SQL dialect.
+# + return - SQL text with positional parameters, or a SchemaError.
 public function toSql(QueryPlan plan, Engine engine = MYSQL) returns SqlQuery|SchemaError {
     SqlBuildState state = new;
     string tableName = plan.tableName ?: toDefaultTableName(plan.model);

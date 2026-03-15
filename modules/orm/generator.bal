@@ -1,6 +1,9 @@
 # Type and CRUD wrapper generation for ORM models.
 
 # Generate model-level type and CRUD sources for all schema models.
+#
+# + graph - The parsed schema graph containing all model definitions.
+# + return - Map of model name to generated type and CRUD source payloads.
 public function generateModelArtifacts(SchemaGraph graph) returns map<ModelGeneration> {
     map<ModelGeneration> artifacts = {};
 

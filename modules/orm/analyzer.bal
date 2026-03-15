@@ -1,6 +1,9 @@
 # Compile-time validation helpers for ORM schema plugin diagnostics.
 
 # Analyze schema relationships and return plugin diagnostics.
+#
+# + graph - The parsed schema graph to analyze.
+# + return - List of diagnostics produced by relation validation.
 public function analyzeSchemaForPlugin(SchemaGraph graph) returns PluginDiagnostic[] {
     PluginDiagnostic[] diagnostics = [];
 

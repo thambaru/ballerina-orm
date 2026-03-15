@@ -1,6 +1,9 @@
 # MySQL dialect helpers.
 
 # Quote an identifier using MySQL rules.
+#
+# + identifier - Raw identifier string to quote.
+# + return - Backtick-quoted identifier safe for use in MySQL SQL strings.
 public function mysqlQuoteIdentifier(string identifier) returns string {
     string escaped = "";
     int index = 0;
@@ -17,6 +20,9 @@ public function mysqlQuoteIdentifier(string identifier) returns string {
 }
 
 # Placeholder for MySQL positional parameters.
+#
+# + index - 1-based parameter index (ignored for MySQL).
+# + return - The literal `?` placeholder string.
 public function mysqlPlaceholder(int index) returns string {
     _ = index;
     return "?";

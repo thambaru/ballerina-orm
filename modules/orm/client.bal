@@ -8,6 +8,8 @@ import ballerinax/postgresql.driver as _;
 public type NativeDbClient mysql:Client|postgresql:Client;
 
 # ORM database client wrapper for MySQL and PostgreSQL backends.
+#
+# + provider - Active database provider for this client instance.
 public class Client {
     public final Engine provider;
 
@@ -52,11 +54,15 @@ public class Client {
     }
 
     # Returns the normalized configuration used by this client.
+    #
+    # + return - Normalized configuration with the password redacted.
     public function getConfig() returns NormalizedClientConfig {
         return self.config;
     }
 
     # Expose the underlying database client for low-level SQL operations.
+    #
+    # + return - The underlying mysql:Client or postgresql:Client handle.
     public function getNativeClient() returns NativeDbClient {
         return self.nativeClient;
     }
@@ -64,6 +70,9 @@ public class Client {
     # Convert a query plan to SQL and execute it as a read query.
     #
     # Use this for `findMany`, `findFirst`, `findUnique`, `count`, and `aggregate` operations.
+    #
+    # + plan - Compiled query plan describing the read operation.
+    # + return - A stream of generic record rows, or an error.
     public function query(QueryPlan plan) returns stream<record {}, sql:Error?>|SchemaError|ClientError|sql:Error {
         if !isReadOperation(plan.operation) {
             return clientError(
@@ -80,6 +89,9 @@ public class Client {
     # Convert a query plan to SQL and execute it as a write query.
     #
     # Use this for `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, and `deleteMany` operations.
+    #
+    # + plan - Compiled query plan describing the write operation.
+    # + return - SQL execution result, or an error.
     public function execute(QueryPlan plan) returns sql:ExecutionResult|SchemaError|ClientError|sql:Error {
         if !isWriteOperation(plan.operation) {
             return clientError(
@@ -94,7 +106,11 @@ public class Client {
     }
 
     # Execute raw SQL query text with positional parameters.
-    # Returns a generic record stream. Use `cloneWithType()` on collected rows for typed access.
+    # Returns a generic record stream. Cast result rows to your model type using a type descriptor.
+    #
+    # + text - Raw SQL query string with `?` (MySQL) or `$n` (PostgreSQL) placeholders.
+    # + params - Positional parameter values matching the placeholders.
+    # + return - A stream of generic record rows, or an error.
     public function rawQuery(string text, anydata[] params = []) returns stream<record {}, sql:Error?>|ClientError|sql:Error {
         sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
         return self.rawQueryParameterized(parameterizedQuery);
@@ -102,6 +118,10 @@ public class Client {
 
     # Execute raw SQL statement text with positional parameters.
     # Returns the number of affected rows.
+    #
+    # + text - Raw SQL statement string with `?` (MySQL) or `$n` (PostgreSQL) placeholders.
+    # + params - Positional parameter values matching the placeholders.
+    # + return - Number of affected rows, or an error.
     public function rawExecute(string text, anydata[] params = []) returns int|ClientError|sql:Error {
         sql:ParameterizedQuery parameterizedQuery = check toParameterizedSqlQuery({text: text, parameters: params}, self.provider);
         sql:ExecutionResult|sql:Error execResult = self.rawExecuteParameterized(parameterizedQuery);
@@ -134,6 +154,9 @@ public class Client {
     # Create an executing query builder bound to this client for the given model type.
     #
     # Terminal methods on the returned builder execute immediately — no separate run step required.
+    #
+    # + modelType - Type descriptor of the model record type.
+    # + return - An ExecutingQueryBuilder scoped to the given model.
     public function model(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
         return new (self, extractModelName(modelType));
     }
@@ -147,11 +170,16 @@ public class Client {
     #     .orderBy({id: orm:DESC})
     #     .findMany();
     # ```
+    #
+    # + modelType - Type descriptor of the model record type.
+    # + return - An ExecutingQueryBuilder scoped to the given model.
     public function 'from(typedesc<anydata> modelType) returns ExecutingQueryBuilder {
         return new (self, extractModelName(modelType));
     }
 
     # Close the underlying database client.
+    #
+    # + return - An error if closing fails, otherwise nil.
     public function close() returns error? {
         if self.provider == MYSQL {
             mysql:Client dbClient = <mysql:Client>self.nativeClient;
@@ -164,6 +192,10 @@ public class Client {
 }
 
 # Convert generated SQL payload to a sql:ParameterizedQuery.
+#
+# + sqlQuery - SQL text and positional parameters to convert.
+# + provider - Database provider that determines placeholder syntax.
+# + return - A sql:ParameterizedQuery ready for execution, or a ClientError.
 public function toParameterizedSqlQuery(SqlQuery sqlQuery, Engine provider) returns sql:ParameterizedQuery|ClientError {
     if provider == MYSQL {
         return buildMysqlParameterizedQuery(sqlQuery.text, sqlQuery.parameters);

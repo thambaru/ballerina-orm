@@ -17,6 +17,10 @@ public const MANY_TO_MANY = "MANY_TO_MANY";
 public type RelationType ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY;
 
 # Entity-level mapping settings.
+#
+# + tableName - Database table name. Defaults to the snake_case plural of the model name.
+# + schema - Optional database schema name prefix.
+# + engine - Force a specific database provider for this model.
 public type EntityConfig record {|
     string tableName?;
     string schema?;
@@ -24,6 +28,13 @@ public type EntityConfig record {|
 |};
 
 # Column-level mapping settings.
+#
+# + name - Column name override. Defaults to the snake_case of the field name.
+# + type - Explicit database column type string.
+# + length - Maximum character length for string columns.
+# + nullable - Whether the column accepts NULL values.
+# + unique - Whether a unique constraint is applied to this column.
+# + default - Default value applied at the database level.
 public type ColumnConfig record {|
     string name?;
     string 'type?;
@@ -34,6 +45,10 @@ public type ColumnConfig record {|
 |};
 
 # Index settings for single or composite indexes.
+#
+# + name - Optional explicit index name. Auto-generated from columns if omitted.
+# + columns - Field names that form the index.
+# + unique - Whether the index enforces uniqueness.
 public type IndexConfig record {|
     string name?;
     string[] columns;
@@ -41,6 +56,12 @@ public type IndexConfig record {|
 |};
 
 # Relation mapping settings.
+#
+# + type - Relation kind: ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, or MANY_TO_MANY.
+# + model - Target model name. Inferred from the Ballerina field type when omitted.
+# + references - Primary-key field names on the target model side.
+# + foreignKey - Foreign-key field names on the owning model side.
+# + joinTable - Join table name for MANY_TO_MANY relations.
 public type RelationConfig record {|
     RelationType 'type?;
     string model?;

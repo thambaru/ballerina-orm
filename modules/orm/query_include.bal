@@ -6,6 +6,9 @@
 public type IncludeInput map<anydata>;
 
 # Collect relation names that are explicitly included with `true`.
+#
+# + input - Relation include map.
+# + return - List of relation field names whose value is `true`.
 public function includedRelations(IncludeInput input) returns string[] {
     string[] relations = [];
     foreach var [fieldName, includeValue] in input.entries() {
