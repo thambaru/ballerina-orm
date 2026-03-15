@@ -2,6 +2,12 @@
 
 A Prisma-inspired, type-safe ORM for Ballerina with full relation support and MySQL + PostgreSQL backends.
 
+## Start Here: Official Website
+
+For the docs, guides, API usage, and updates, use the official website:
+
+**https://ballerina-orm.thambaru.com**
+
 ## Features
 
 - 🎯 **Type-safe query builder** — Prisma-style fluent API with compile-time safety
@@ -366,6 +372,12 @@ See the `examples/` directory for complete examples:
 
 ## Documentation
 
+Primary documentation is on the official website:
+
+- https://ballerina-orm.thambaru.com
+
+Repository docs:
+
 - [API Reference](docs/API_REFERENCE.md) — Complete API documentation
 - [Compiler Plugin](docs/COMPILER_PLUGIN.md) — Plugin architecture and code generation
 
@@ -380,7 +392,9 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ## License
 
-Apache License 2.0
+MIT License
+
+See [LICENSE](LICENSE).
 
 ## Acknowledgments
 

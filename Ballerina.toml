@@ -1,9 +1,12 @@
 [package]
 org = "thambaru"
 name = "bal_orm"
-version = "0.1.0"
+version = "1.0.0"
 distribution = "2201.13.1"
-export = ["bal_orm", "bal_orm.orm"]
+
+[[package.modules]]
+name = "bal_orm.orm"
+export = true
 
 [tool]
 id = "orm"
