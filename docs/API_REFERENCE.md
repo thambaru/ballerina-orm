@@ -237,25 +237,25 @@ check client.close();
 ### client.rawQuery()
 
 ```ballerina
-public isolated function rawQuery(string query, anydata... params) 
-    returns stream<record {}, error?>|Error
+public function rawQuery(string text, anydata[] params = []) 
+    returns stream<record {}, sql:Error?>|ClientError|sql:Error
 ```
 
 Executes a raw SQL query and returns a stream of results.
 
 **Example:**
 ```ballerina
-stream<User, error?> users = check client.rawQuery(
+stream<record {}, sql:Error?> users = check client.rawQuery(
     "SELECT * FROM users WHERE age > ?",
-    18
+    [18]
 );
 ```
 
 ### client.rawExecute()
 
 ```ballerina
-public isolated function rawExecute(string query, anydata... params) 
-    returns int|Error
+public function rawExecute(string text, anydata[] params = []) 
+    returns int|ClientError|sql:Error
 ```
 
 Executes a raw SQL statement (INSERT, UPDATE, DELETE) and returns affected rows.
@@ -264,8 +264,7 @@ Executes a raw SQL statement (INSERT, UPDATE, DELETE) and returns affected rows.
 ```ballerina
 int affected = check client.rawExecute(
     "UPDATE users SET status = ? WHERE id = ?",
-    "ACTIVE",
-    userId
+    ["ACTIVE", userId]
 );
 ```
 
@@ -401,22 +400,21 @@ int count = check orm:'from(User)
 ### upsert()
 
 ```ballerina
-public function upsert(record {|
-    record {} 'where;
-    record {} create;
-    record {} update;
-|} data) returns Model|Error
+public function upsert(map<anydata> createData, map<anydata> updateData) 
+    returns sql:ExecutionResult|SchemaError|ClientError|sql:Error
 ```
 
-Creates or updates a record.
+Creates or updates a record. The `where` clause set on the builder determines the conflict check;
+`createData` is used for the insert branch and `updateData` for the update branch.
 
 **Example:**
 ```ballerina
-User user = check orm:'from(User).upsert({
-    'where: {email: "alice@example.com"},
-    create: {email: "alice@example.com", name: "Alice"},
-    update: {name: "Alice Updated"}
-});
+sql:ExecutionResult result = check db.'from(User)
+    .'where({email: "alice@example.com"})
+    .upsert(
+        {email: "alice@example.com", name: "Alice"},
+        {name: "Alice Updated"}
+    );
 ```
 
 ### delete()
@@ -816,13 +814,12 @@ if result is error {
 ### Raw Queries
 
 ```ballerina
-stream<User, error?> users = check client.rawQuery(
+stream<record {}, sql:Error?> resultStream = check client.rawQuery(
     "SELECT * FROM users WHERE age > ? AND status = ?",
-    18,
-    "ACTIVE"
+    [18, "ACTIVE"]
 );
 
-User[] userArray = check from User u in users select u;
+record {}[] rows = check from var r in resultStream select r;
 ```
 
 ### Raw Execution
@@ -830,7 +827,7 @@ User[] userArray = check from User u in users select u;
 ```ballerina
 int affected = check client.rawExecute(
     "UPDATE users SET last_login = NOW() WHERE id = ?",
-    userId
+    [userId]
 );
 
 io:println(`Updated ${affected} rows`);

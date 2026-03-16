@@ -321,8 +321,8 @@ orm:Client db = check new ({
     password: "password",
     database: "myapp",
     connectionPool: {
-        maxPoolSize: 10,
-        maxLifeTime: 1800
+        maxOpenConnections: 10,
+        maxConnectionLifeTime: 1800
     }
 });
 ```
