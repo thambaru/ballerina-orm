@@ -593,8 +593,9 @@ function buildOperatorCondition(string column, string operator, anydata value, E
             operator == "startsWith" ? string `${escapedValue}%` : string `%${escapedValue}`;
         string placeholder = addParam(engine, state, pattern);
         if engine == POSTGRESQL {
-            // PostgreSQL treats backslash as default escape; explicit ESCAPE '\' can be
-            // misinterpreted as a two-character string, leading to syntax errors.
+            // PostgreSQL with standard_conforming_strings=on (default since 9.1) uses backslash
+            // as the default LIKE escape character. An explicit ESCAPE clause is intentionally
+            // omitted because ESCAPE '\' is treated as a literal two-char string in standard mode.
             return string `${column} LIKE ${placeholder}`;
         }
         return string `${column} LIKE ${placeholder} ESCAPE '\\'`;

@@ -107,7 +107,11 @@ public function rawExecute(string text, anydata... params) returns SqlQuery {
     };
 }
 
-# Mutable fluent query builder.
+# Fluent query builder that accumulates query parameters.
+#
+# **Important**: This builder mutates internal state. Each builder instance should be used
+# to construct exactly one query. Do not reuse a builder across multiple queries — create
+# a fresh builder for each query instead.
 public class QueryBuilder {
     private QueryPlan plan;
 

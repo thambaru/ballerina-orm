@@ -1,10 +1,3 @@
-# Returns the string `Hello` with the input string name.
-#
-# + name - name as a string or nil
-# + return - "Hello, " with the input string name
-public function hello(string? name) returns string {
-    if name !is () {
-        return string `Hello, ${name}`;
-    }
-    return "Hello, World!";
-}
+# ORM package version constant.
+# The ORM functionality is provided by the `bal_orm.orm` sub-module.
+public const string ORM_VERSION = "1.0.0";

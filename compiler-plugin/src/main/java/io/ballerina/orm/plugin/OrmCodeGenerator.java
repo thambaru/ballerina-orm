@@ -511,7 +511,7 @@ public class OrmCodeGenerator extends CodeGenerator {
         }
 
         if (normalizedType.contains("|")) {
-            String[] members = normalizedType.split("\\\\|");
+            String[] members = normalizedType.split("\\|");
             for (String member : members) {
                 String value = normalizeType(member);
                 if (value.isEmpty() || "()".equals(value)) {

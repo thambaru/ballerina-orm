@@ -182,48 +182,63 @@ public class ExecutingQueryBuilder {
         return row;
     }
 
-    # Execute a createMany query and return all created rows as a generic record array.
+    # Execute a createMany query using a single batch INSERT and return all created rows.
     #
-    # Inserts each row individually and fetches results via auto-generated primary keys.
-    # Assumes the primary key column is named `id`.
+    # Assumes the primary key column is named `id` and is auto-incremented.
     #
     # + dataList - List of field value maps to insert.
     # + return - Array of newly inserted generic records, or an error.
     public function createMany(map<anydata>[] dataList) returns record {}[]|error {
-        record {}[] results = [];
+        if dataList.length() == 0 {
+            return [];
+        }
+
+        self.plan.operation = CREATE_MANY;
+        self.plan.dataList = dataList;
+        sql:ExecutionResult|SchemaError|ClientError|sql:Error execResult = self.dbClient.execute(self.plan);
+        if execResult is error {
+            return execResult;
+        }
+
         string tableName = self.plan.tableName ?: toDefaultTableName(self.plan.model);
+        string|int? lastId = execResult.lastInsertId;
+        int rowCount = dataList.length();
+
+        if lastId is int {
+            // For auto-increment, fetch all inserted rows by ID range
+            int firstId = lastId - rowCount + 1;
+            return fetchInsertedRows(self.dbClient, tableName, firstId, rowCount);
+        }
+
+        if lastId is () && self.dbClient.provider == POSTGRESQL {
+            // PostgreSQL: lastval() gives the last id; compute the range
+            int|error lastValResult = postgresqlLastVal(self.dbClient);
+            if lastValResult is error {
+                return error("CREATEMANY_FETCH_FAILED", message = "No lastInsertId and lastval() failed: " + lastValResult.message());
+            }
+            int firstId = lastValResult - rowCount + 1;
+            return fetchInsertedRows(self.dbClient, tableName, firstId, rowCount);
+        }
+
+        // Fallback: re-fetch individually if we cannot determine the ID range
+        record {}[] results = [];
         string modelName = self.plan.model;
         foreach map<anydata> data in dataList {
-            QueryPlan insertPlan = {
+            QueryPlan insertFetchPlan = {
                 model: modelName,
                 tableName: self.plan.tableName,
-                operation: CREATE,
-                data: data,
+                operation: FIND_FIRST,
+                'where: data,
+                take: 1,
                 orderBy: []
             };
-            sql:ExecutionResult|SchemaError|ClientError|sql:Error execResult = self.dbClient.execute(insertPlan);
-            if execResult is error {
-                return execResult;
+            record {}[]|SchemaError|ClientError|sql:Error rows = executeReadPlan(self.dbClient, insertFetchPlan);
+            if rows is error {
+                return rows;
             }
-            string|int? lastId = execResult.lastInsertId;
-            string|int resolvedId;
-            if lastId is () {
-                int|error lastValResult = postgresqlLastVal(self.dbClient);
-                if lastValResult is error {
-                    return error("CREATEMANY_FETCH_FAILED", message = "No lastInsertId and lastval() failed: " + lastValResult.message());
-                }
-                resolvedId = lastValResult;
-            } else {
-                resolvedId = lastId;
+            if rows.length() > 0 {
+                results.push(rows[0]);
             }
-            record {}?|error insertedRow = fetchInsertedRow(self.dbClient, tableName, resolvedId);
-            if insertedRow is error {
-                return insertedRow;
-            }
-            if insertedRow is () {
-                return error("CREATEMANY_FETCH_FAILED", message = "Created row could not be retrieved.");
-            }
-            results.push(insertedRow);
         }
         return results;
     }
@@ -290,6 +305,10 @@ public class ExecutingQueryBuilder {
     # Execute a delete query, returning the deleted row as a generic record.
     #
     # Fetches the matching record before deletion, deletes it, then returns the fetched record.
+    #
+    # **Note**: The fetch and delete are separate operations and are not atomic unless wrapped
+    # in a Ballerina `transaction` block. In concurrent scenarios, the row may be modified or
+    # deleted between the fetch and delete steps.
     #
     # + return - The deleted generic record, or an error.
     public function delete() returns record {}|error {
@@ -361,11 +380,13 @@ function executeReadPlan(Client dbClient, QueryPlan plan)
 # + return - The matching record row, nil if not found, or an error.
 function fetchInsertedRow(Client dbClient, string tableName, string|int rowId) returns record {}?|error {
     anydata[] params = [rowId];
+    string quotedTable = quoteIdentifier(dbClient.provider, tableName);
+    string quotedId = quoteIdentifier(dbClient.provider, "id");
     string sql;
     if dbClient.provider == POSTGRESQL {
-        sql = "SELECT * FROM \"" + tableName + "\" WHERE \"id\" = $1 LIMIT 1";
+        sql = "SELECT * FROM " + quotedTable + " WHERE " + quotedId + " = $1 LIMIT 1";
     } else {
-        sql = "SELECT * FROM `" + tableName + "` WHERE `id` = ? LIMIT 1";
+        sql = "SELECT * FROM " + quotedTable + " WHERE " + quotedId + " = ? LIMIT 1";
     }
     stream<record {}, sql:Error?>|ClientError|sql:Error queryResult = dbClient.rawQuery(sql, params);
     if queryResult is error {
@@ -379,6 +400,36 @@ function fetchInsertedRow(Client dbClient, string tableName, string|int rowId) r
         return ();
     }
     return convertRowToCamel((<record {}[]>rows)[0]);
+}
+
+# Fetch multiple rows by auto-generated primary key range.
+# Used internally after batch INSERT to return all inserted records.
+#
+# + dbClient - The ORM client to query against.
+# + tableName - The table to query.
+# + firstId - The first primary key value in the range.
+# + count - The number of rows to fetch.
+# + return - Array of matching record rows, or an error.
+function fetchInsertedRows(Client dbClient, string tableName, int firstId, int count) returns record {}[]|error {
+    int lastId = firstId + count - 1;
+    anydata[] params = [firstId, lastId];
+    string quotedTable = quoteIdentifier(dbClient.provider, tableName);
+    string quotedId = quoteIdentifier(dbClient.provider, "id");
+    string sql;
+    if dbClient.provider == POSTGRESQL {
+        sql = "SELECT * FROM " + quotedTable + " WHERE " + quotedId + " >= $1 AND " + quotedId + " <= $2 ORDER BY " + quotedId + " ASC";
+    } else {
+        sql = "SELECT * FROM " + quotedTable + " WHERE " + quotedId + " >= ? AND " + quotedId + " <= ? ORDER BY " + quotedId + " ASC";
+    }
+    stream<record {}, sql:Error?>|ClientError|sql:Error queryResult = dbClient.rawQuery(sql, params);
+    if queryResult is error {
+        return queryResult;
+    }
+    record {}[]|error rows = from var r in queryResult select r;
+    if rows is error {
+        return rows;
+    }
+    return (<record {}[]>rows).map(convertRowToCamel);
 }
 
 # For PostgreSQL: query the last inserted id using lastval().

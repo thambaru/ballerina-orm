@@ -86,5 +86,15 @@ function isKeywordIdentifier(string fieldName) returns boolean {
         fieldName == "select" ||
         fieldName == "table" ||
         fieldName == "in" ||
-        fieldName == "equals";
+        fieldName == "equals" ||
+        fieldName == "order" ||
+        fieldName == "group" ||
+        fieldName == "by" ||
+        fieldName == "join" ||
+        fieldName == "limit" ||
+        fieldName == "type" ||
+        fieldName == "function" ||
+        fieldName == "transaction" ||
+        fieldName == "check" ||
+        fieldName == "error";
 }
