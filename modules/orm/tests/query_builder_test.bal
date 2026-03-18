@@ -26,7 +26,7 @@ function testFindManySqlForPostgresql() {
 
     test:assertEquals(
         sql.text,
-        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\') AND (\"age\" >= $2) ORDER BY \"created_at\" DESC LIMIT 20 OFFSET 10"
+        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\') AND (\"age\" >= $2) ORDER BY \"created_at\" DESC LIMIT 20 OFFSET 10"
     );
     test:assertEquals(sql.parameters, ["%@example.com%", 18]);
 }
@@ -98,7 +98,7 @@ function testStringFilterOperators() {
     
     test:assertEquals(
         sql.text,
-        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\') AND (\"name\" LIKE $2 ESCAPE '\\\\') AND (\"bio\" LIKE $3 ESCAPE '\\\\')"
+        "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\') AND (\"name\" LIKE $2 ESCAPE '\\') AND (\"bio\" LIKE $3 ESCAPE '\\')"
     );
     test:assertEquals(sql.parameters, ["admin%", "%Smith", "%developer%"]);
 }
@@ -113,7 +113,7 @@ function testLikeWildcardEscaping() {
 
     SqlQuery sql = checkpanic toSql(plan, POSTGRESQL);
 
-    test:assertEquals(sql.text, "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\\\')");
+    test:assertEquals(sql.text, "SELECT * FROM \"users\" WHERE (\"email\" LIKE $1 ESCAPE '\\')");
     test:assertEquals(sql.parameters, ["%100\\%\\_ok%"]);
 }
 

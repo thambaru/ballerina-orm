@@ -72,5 +72,38 @@ function isKeywordIdentifier(string fieldName) returns boolean {
         fieldName == "select" ||
         fieldName == "table" ||
         fieldName == "in" ||
-        fieldName == "equals";
+        fieldName == "equals" ||
+        fieldName == "type" ||
+        fieldName == "match" ||
+        fieldName == "error" ||
+        fieldName == "check" ||
+        fieldName == "is" ||
+        fieldName == "map" ||
+        fieldName == "foreach" ||
+        fieldName == "while" ||
+        fieldName == "if" ||
+        fieldName == "else" ||
+        fieldName == "return" ||
+        fieldName == "new" ||
+        fieldName == "function" ||
+        fieldName == "resource" ||
+        fieldName == "service" ||
+        fieldName == "import" ||
+        fieldName == "continue" ||
+        fieldName == "break" ||
+        fieldName == "transaction" ||
+        fieldName == "retry" ||
+        fieldName == "do" ||
+        fieldName == "join" ||
+        fieldName == "start" ||
+        fieldName == "limit" ||
+        fieldName == "order" ||
+        fieldName == "by" ||
+        fieldName == "ascending" ||
+        fieldName == "descending" ||
+        fieldName == "let" ||
+        fieldName == "on" ||
+        fieldName == "conflict" ||
+        fieldName == "key" ||
+        fieldName == "default";
 }

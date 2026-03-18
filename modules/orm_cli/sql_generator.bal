@@ -204,10 +204,30 @@ function resolveCliColumnType(IntrospectedColumn col, string provider) returns s
 }
 
 function quoteCliIdentifier(string name, string provider) returns string {
+    string escaped = "";
+    int index = 0;
     if provider == "MYSQL" {
-        return "`" + name + "`";
+        while index < name.length() {
+            string c = name.substring(index, index + 1);
+            if c == "`" {
+                escaped = escaped + "``";
+            } else {
+                escaped = escaped + c;
+            }
+            index += 1;
+        }
+        return "`" + escaped + "`";
     }
-    return "\"" + name + "\"";
+    while index < name.length() {
+        string c = name.substring(index, index + 1);
+        if c == "\"" {
+            escaped = escaped + "\"\"";
+        } else {
+            escaped = escaped + c;
+        }
+        index += 1;
+    }
+    return "\"" + escaped + "\"";
 }
 
 function joinCliStrings(string[] parts, string sep) returns string {

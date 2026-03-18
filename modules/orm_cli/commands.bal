@@ -124,6 +124,34 @@ public function handleMigrateResetCommand(
     io:println("Resetting database...");
     io:println("WARNING: This will drop and re-apply all migrations!");
 
+    // Drop all user tables first by introspecting the current schema
+    IntrospectedSchema currentSchema;
+    if provider == "MYSQL" {
+        currentSchema = check introspectMysql(dbClient);
+    } else {
+        currentSchema = check introspectPostgresql(dbClient);
+    }
+
+    foreach string tableName in currentSchema.tables.keys() {
+        if tableName == "_orm_migrations" {
+            continue;
+        }
+        string dropSql = generateDropTableSql(tableName, provider);
+        if provider == "MYSQL" {
+            check executeMigrationOnMysql(dbClient, dropSql);
+        } else {
+            check executeMigrationOnPostgresql(dbClient, dropSql);
+        }
+    }
+
+    // Drop the migrations tracking table itself
+    string dropTrackingSql = generateDropTableSql("_orm_migrations", provider);
+    if provider == "MYSQL" {
+        check executeMigrationOnMysql(dbClient, dropTrackingSql);
+    } else {
+        check executeMigrationOnPostgresql(dbClient, dropTrackingSql);
+    }
+
     // Re-apply all migrations from scratch
     Migration[] all = check listMigrations(migrationsDir);
 
